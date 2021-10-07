@@ -1,7 +1,7 @@
 {
 	"name": "cairo-ls",
 	"displayName": "Language support for Cairo",
-	"description": "Cairo language support for scaling dApps using STARKs",
+	"description": "Cairo language support for VS Code",
 	"author": "Eric Lau",
 	"license": "EPL-2.0",
 	"version": "0.0.1",

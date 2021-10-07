@@ -1,6 +1,6 @@
 # Language support for Cairo
 
-[Cairo](https://www.cairo-lang.org/) language support for scaling dApps using STARKs.
+[Cairo](https://www.cairo-lang.org/) language support for VS Code.
 
 This project implements a Cairo language server and VS Code extension to help with writing Cairo programs for StarkNet.
 
@@ -8,7 +8,7 @@ This project implements a Cairo language server and VS Code extension to help wi
 
 ## Features
 
-- Syntax support for Cairo .cairo files
+- Compiler support for Cairo .cairo files
 - Live diagnostic highlighting for Cairo compile errors without needing to save the file
 - Quick fixes with suggestions provided by Cairo compiler
 - Hover documentation (minimal for now)
