@@ -20,7 +20,7 @@ Right-click menu commands to interact with Cairo:
 
 ## Setup
 
-1. Follow Cairo environment setup steps at https://www.cairo-lang.org/docs/quickstart.html
+1. Follow [Cairo environment setup steps](https://www.cairo-lang.org/docs/quickstart.html).
 2. If using a virtual environment, start VS Code from within that terminal according to the instructions in the above link.
-3. Install this extension.  This extension can be installed alongside StarkWare's Cairo extension (.vsix file) from https://github.com/starkware-libs/cairo-lang/releases.
+3. Install this extension along with [StarkWare's Cairo extension (.vsix file)](https://github.com/starkware-libs/cairo-lang/releases).
 4. Open a .cairo file and start editing.
