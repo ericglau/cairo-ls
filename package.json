@@ -1,0 +1,115 @@
+{
+	"name": "cairo-ls",
+	"displayName": "Language support for Cairo",
+	"description": "Cairo language support for scaling dApps using STARKs",
+	"author": "Eric Lau",
+	"license": "EPL-2.0",
+	"version": "0.0.1",
+	"preview": true,
+	"icon": "images/logo.png",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/ericglau/cairo-ls"
+	},
+	"publisher": "ericglau",
+	"categories": [
+		"Programming Languages",
+		"Snippets",
+		"Other"
+	],
+	"keywords": [
+		"cairo",
+		"ethereum",
+		"blockchain"
+	],
+	"engines": {
+		"vscode": "^1.43.0"
+	},
+	"activationEvents": [
+		"workspaceContains:**/*.cairo",
+		"onCommand:cairo.compile",
+		"onCommand:cairo.run",
+		"onCommand:cairo.upgrade",
+		"onCommand:cairo.get.eth.abi",
+		"onCommand:cairo.get.eth.bytecode"
+	],
+	"main": "./client/out/extension",
+	"contributes": {
+		"configuration": {
+			"type": "object",
+			"title": "Language support for Cairo",
+			"properties": {
+				"cairols.maxNumberOfProblems": {
+					"scope": "resource",
+					"type": "number",
+					"default": 100,
+					"description": "Controls the maximum number of problems produced by the server."
+				},
+				"cairols.trace.server": {
+					"scope": "window",
+					"type": "string",
+					"enum": [
+						"off",
+						"messages",
+						"verbose"
+					],
+					"default": "off",
+					"description": "Traces the communication between VS Code and the Cairo language server."
+				}
+			}
+		},
+		"menus": {
+			"explorer/context": [
+				{
+					"command": "cairo.compile"
+				},
+				{
+					"command": "cairo.run"
+				}
+			],
+			"touchBar": [
+				{
+					"command": "cairo.compile"
+				},
+				{
+					"command": "cairo.run"
+				}
+			],
+			"editor/context": [
+				{
+					"command": "cairo.compile"
+				},
+				{
+					"command": "cairo.run"
+				}
+			]
+		},
+		"commands": [
+			{
+				"command": "cairo.compile",
+				"category": "Language support for Cairo",
+				"title": "Compile Cairo program"
+			},
+			{
+				"command": "cairo.run",
+				"category": "Language support for Cairo",
+				"title": "Run Cairo program"
+			}
+		]
+	},
+	"scripts": {
+		"vscode:prepublish": "npm run compile",
+		"compile": "tsc -b",
+		"watch": "tsc -b -w",
+		"postinstall": "cd client && npm install && cd ../server && npm install && cd ..",
+		"test": "sh ./scripts/e2e.sh"
+	},
+	"devDependencies": {
+		"@types/mocha": "^5.2.7",
+		"@types/node": "^12.20.28",
+		"@typescript-eslint/parser": "^2.3.0",
+		"eslint": "^6.4.0",
+		"mocha": "^6.2.2",
+		"typescript": "^3.9.10"
+	}
+}

@@ -1,0 +1,22 @@
+{
+	"name": "cairo-vscode",
+	"description": "VS Code language support for Cairo",
+	"author": "Eric Lau",
+	"license": "EPL-2.0",
+	"version": "0.0.1",
+	"publisher": "ericglau",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/ericglau/cairo-ls"
+	},
+	"engines": {
+		"vscode": "^1.43.0"
+	},
+	"dependencies": {
+		"vscode-languageclient": "^6.1.3"
+	},
+	"devDependencies": {
+		"@types/vscode": "1.43.0",
+		"vscode-test": "^1.3.0"
+	}
+}
