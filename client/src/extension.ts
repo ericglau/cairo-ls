@@ -72,19 +72,26 @@ export function activate(context: ExtensionContext) {
 }
 
 function registerCommands(context: ExtensionContext) {
-	const disposable = commands.registerCommand('cairo.compile', () => {
+	const compileCommand = commands.registerCommand('cairo.compile', () => {
 		terminal.show();
 		var { currentOpenFile, outputFile } = getActiveFileNames();
 		terminal.sendText("cairo-compile '" + currentOpenFile + "' --output '" + outputFile + "'");
 	});
-	context.subscriptions.push(disposable);
+	context.subscriptions.push(compileCommand);
 
-	const disposable2 = commands.registerCommand('cairo.run', () => {
+	const runCommand = commands.registerCommand('cairo.run', () => {
 		terminal.show();
 		var { currentOpenFile, outputFile } = getActiveFileNames();
 		terminal.sendText("cairo-run --program='" + outputFile + "' --print_output --print_info --relocate_prints");
 	});
-	context.subscriptions.push(disposable2);
+	context.subscriptions.push(runCommand);
+
+	const runLayoutSmallCommand = commands.registerCommand('cairo.run.layout.small', () => {
+		terminal.show();
+		var { currentOpenFile, outputFile } = getActiveFileNames();
+		terminal.sendText("cairo-run --program='" + outputFile + "' --print_output --print_info --relocate_prints --layout=small");
+	});
+	context.subscriptions.push(runLayoutSmallCommand);
 }
 
 function getActiveFileNames() {

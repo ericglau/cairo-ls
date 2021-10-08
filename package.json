@@ -65,6 +65,9 @@
 				},
 				{
 					"command": "cairo.run"
+				},
+				{
+					"command": "cairo.run.layout.small"
 				}
 			],
 			"touchBar": [
@@ -73,6 +76,9 @@
 				},
 				{
 					"command": "cairo.run"
+				},
+				{
+					"command": "cairo.run.layout.small"
 				}
 			],
 			"editor/context": [
@@ -81,6 +87,9 @@
 				},
 				{
 					"command": "cairo.run"
+				},
+				{
+					"command": "cairo.run.layout.small"
 				}
 			]
 		},
@@ -94,6 +103,11 @@
 				"command": "cairo.run",
 				"category": "Language support for Cairo",
 				"title": "Run Cairo program"
+			},
+			{
+				"command": "cairo.run.layout.small",
+				"category": "Language support for Cairo",
+				"title": "Run Cairo program with small layout"
 			}
 		]
 	},
