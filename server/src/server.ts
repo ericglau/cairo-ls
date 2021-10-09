@@ -207,7 +207,7 @@ async function validateTextDocument(textDocument: TextDocument): Promise<void> {
 		connection.console.log(`Temp source file ${cairoTempIndexFile} saved!`);
 	});
 
-	await exec("cd " + tempFolder + " && cairo-compile " + CAIRO_TEMP_FILE_NAME + " --output temp_compiled.json", (error: { message: any; }, stdout: any, stderr: any) => {
+	await exec("source ~/cairo_venv/bin/activate && cd " + tempFolder + " && cairo-compile " + CAIRO_TEMP_FILE_NAME + " --output temp_compiled.json", (error: { message: any; }, stdout: any, stderr: any) => {
 		if (error) {
 			connection.console.log(`Found compile error: ${error.message}`);
 			let errorLocations: ErrorLocation[] = findErrorLocations(error.message);

@@ -75,21 +75,21 @@ function registerCommands(context: ExtensionContext) {
 	const compileCommand = commands.registerCommand('cairo.compile', () => {
 		terminal.show();
 		var { currentOpenFile, outputFile } = getActiveFileNames();
-		terminal.sendText("cairo-compile '" + currentOpenFile + "' --output '" + outputFile + "'");
+		terminal.sendText("source ~/cairo_venv/bin/activate && cairo-compile '" + currentOpenFile + "' --output '" + outputFile + "'");
 	});
 	context.subscriptions.push(compileCommand);
 
 	const runCommand = commands.registerCommand('cairo.run', () => {
 		terminal.show();
 		var { currentOpenFile, outputFile } = getActiveFileNames();
-		terminal.sendText("cairo-run --program='" + outputFile + "' --print_output --print_info --relocate_prints");
+		terminal.sendText("source ~/cairo_venv/bin/activate && cairo-run --program='" + outputFile + "' --print_output --print_info --relocate_prints");
 	});
 	context.subscriptions.push(runCommand);
 
 	const runLayoutSmallCommand = commands.registerCommand('cairo.run.layout.small', () => {
 		terminal.show();
 		var { currentOpenFile, outputFile } = getActiveFileNames();
-		terminal.sendText("cairo-run --program='" + outputFile + "' --print_output --print_info --relocate_prints --layout=small");
+		terminal.sendText("source ~/cairo_venv/bin/activate && cairo-run --program='" + outputFile + "' --print_output --print_info --relocate_prints --layout=small");
 	});
 	context.subscriptions.push(runLayoutSmallCommand);
 }
