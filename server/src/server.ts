@@ -223,7 +223,6 @@ async function validateTextDocument(textDocument: TextDocument): Promise<void> {
 			let problems = 0;
 			for (var i = 0; i < errorLocations.length; i++) {
 				let element: ErrorLocation = errorLocations[i];
-				connection.console.log(`Displaying error message: ` + element.errorMessage);
 				let maxProblems = settings?.maxNumberOfProblems || DEFAULT_MAX_PROBLEMS;
 				if (problems < maxProblems) {
 					problems++;
@@ -294,7 +293,6 @@ temp.cairo:2:15: Unexpected token Token(IDENTIFIER, 'aa0'). Expected one of: "."
 
 	let locations: ErrorLocation[] = [];
 	if (m = pattern.exec(compileErrors)) {
-		connection.console.log(`Found pattern: ${m}`);
 
 		// ERROR MESSAGE m:
 		// temp.cairo:2:15: Unexpected token Token(IDENTIFIER, 'aa0'). Expected one of: ".", ";", "[", operator.
@@ -342,8 +340,6 @@ temp.cairo:2:15: Unexpected token Token(IDENTIFIER, 'aa0'). Expected one of: "."
 			}
 
 			start = { line: linePos - 1, character: charPos - 1} // Cairo compiler numbers starts at 1
-
-			connection.console.log(`actualMessage: ${actualMessage}`);
 
 			// Get list of suggestions from compiler
 			const MULTI_SUGGESTION_PREFIX = "Expected one of: ";
