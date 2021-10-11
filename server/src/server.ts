@@ -292,9 +292,8 @@ temp.cairo:2:15: Unexpected token Token(IDENTIFIER, 'aa0'). Expected one of: "."
 	let pattern = /\n.*/gs  // start at the second line
 	let m: RegExpExecArray | null;
 
-	let problems = 0;
 	let locations: ErrorLocation[] = [];
-	while ((m = pattern.exec(compileErrors)) && problems < 100 /*settings.maxNumberOfProblems*/) {
+	if (m = pattern.exec(compileErrors)) {
 		connection.console.log(`Found pattern: ${m}`);
 
 		// ERROR MESSAGE m:
@@ -305,10 +304,16 @@ temp.cairo:2:15: Unexpected token Token(IDENTIFIER, 'aa0'). Expected one of: "."
 
 		// ----- get problem length -----
 		var lines = m[0].split('\n');
-		var arrowsLine = lines[3];
-		var trimmedArrows = arrowsLine.trim();
-		var problemLength = trimmedArrows.length;
-		connection.console.log(`Problem length: ${problemLength}`);
+		var problemLength;
+		if (lines.length < 4) {
+			connection.console.log(`Could not determine problem length`);
+			problemLength = -1;
+		} else {
+			var arrowsLine = lines[3];
+			var trimmedArrows = arrowsLine.trim();
+			problemLength = trimmedArrows.length;
+			connection.console.log(`Problem length: ${problemLength}`);	
+		}
 		// ------------------------------
 
 		// Get actual message portion after the line and position numbers
@@ -360,7 +365,11 @@ temp.cairo:2:15: Unexpected token Token(IDENTIFIER, 'aa0'). Expected one of: "."
 			}
 			connection.console.log(`Parsed suggestions: ${suggestions}`);
 
-			end = { line: linePos - 1, character: charPos - 1 + problemLength };
+			if (problemLength == -1) {
+				end = { line: linePos, character: 0 };
+			} else {
+				end = { line: linePos - 1, character: charPos - 1 + problemLength };
+			}
 		}
 
 		let location: ErrorLocation = {
@@ -372,8 +381,6 @@ temp.cairo:2:15: Unexpected token Token(IDENTIFIER, 'aa0'). Expected one of: "."
 			suggestions: suggestions
 		};
 		locations.push(location);
-
-		break; // TODO make this not a while loop
 	}
 	return locations;
 }
