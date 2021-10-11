@@ -136,12 +136,16 @@ connection.onInitialized(() => {
 
 interface CairoLSSettings {
 	maxNumberOfProblems: number;
+	useVenv: boolean;
+	venvCommand: string;
 }
 
-// The global settings, used when the `workspace/configuration` request is not supported by the client.
-// Please note that this is not the case when using this server with the client provided in this example
-// but could happen with other clients.
-const defaultSettings: CairoLSSettings = { maxNumberOfProblems: 100 };
+const DEFAULT_MAX_PROBLEMS = 100;
+const DEFAULT_USE_VENV = true;
+const DEFAULT_VENV_COMMAND = ". ~/cairo_venv/bin/activate";
+
+
+let defaultSettings: CairoLSSettings = { maxNumberOfProblems: DEFAULT_MAX_PROBLEMS, useVenv: DEFAULT_USE_VENV, venvCommand: DEFAULT_VENV_COMMAND };
 let globalSettings: CairoLSSettings = defaultSettings;
 
 // Cache the settings of all open documents
@@ -207,7 +211,12 @@ async function validateTextDocument(textDocument: TextDocument): Promise<void> {
 		connection.console.log(`Temp source file ${cairoTempIndexFile} saved!`);
 	});
 
-	await exec(". ~/cairo_venv/bin/activate && cd " + tempFolder + " && cairo-compile " + CAIRO_TEMP_FILE_NAME + " --output temp_compiled.json", (error: { message: any; }, stdout: any, stderr: any) => {
+	var commandPrefix = "";
+	if (settings.useVenv && settings.venvCommand != null && settings.venvCommand.length > 0) {
+		commandPrefix = settings.venvCommand + " && ";
+	}
+
+	await exec(commandPrefix + "cd " + tempFolder + " && cairo-compile " + CAIRO_TEMP_FILE_NAME + " --output temp_compiled.json", (error: { message: any; }, stdout: any, stderr: any) => {
 		if (error) {
 			connection.console.log(`Found compile error: ${error.message}`);
 			let errorLocations: ErrorLocation[] = findErrorLocations(error.message);
@@ -215,7 +224,8 @@ async function validateTextDocument(textDocument: TextDocument): Promise<void> {
 			for (var i = 0; i < errorLocations.length; i++) {
 				let element: ErrorLocation = errorLocations[i];
 				connection.console.log(`Displaying error message: ` + element.errorMessage);
-				if (problems < 100) {// TODO settings.maxNumberOfProblems) {
+				let maxProblems = settings?.maxNumberOfProblems || DEFAULT_MAX_PROBLEMS;
+				if (problems < maxProblems) {
 					problems++;
 
 					addDiagnostic(element, `${element.errorMessage}`, 'Cairo compilation encountered an error.', DiagnosticSeverity.Error, DIAGNOSTIC_TYPE_COMPILE_ERROR + (element.suggestions != undefined ? element.suggestions : ""));

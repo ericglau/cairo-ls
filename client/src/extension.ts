@@ -42,7 +42,9 @@ export function activate(context: ExtensionContext) {
 	};
 	
 	terminal = window.createTerminal({ name: "Cairo LS" });
-	registerCommands(context);
+	const useVenv = workspace.getConfiguration().get('cairols.useVenv') as boolean;
+	const venvCommand = workspace.getConfiguration().get('cairols.venvCommand') as string;
+	registerCommands(context, useVenv, venvCommand);
 
 	// Options to control the language client
 	let clientOptions: LanguageClientOptions = {
@@ -71,25 +73,30 @@ export function activate(context: ExtensionContext) {
 	client.start();
 }
 
-function registerCommands(context: ExtensionContext) {
+function registerCommands(context: ExtensionContext, useVenv: boolean, venvCommand: string) {
+	var commandPrefix = "";
+	if (useVenv && venvCommand != null && venvCommand.length > 0) {
+		commandPrefix = venvCommand + " && ";
+	}
+
 	const compileCommand = commands.registerCommand('cairo.compile', () => {
 		terminal.show();
 		var { currentOpenFile, outputFile } = getActiveFileNames();
-		terminal.sendText(". ~/cairo_venv/bin/activate && cairo-compile '" + currentOpenFile + "' --output '" + outputFile + "'");
+		terminal.sendText(commandPrefix + "cairo-compile '" + currentOpenFile + "' --output '" + outputFile + "'");
 	});
 	context.subscriptions.push(compileCommand);
 
 	const runCommand = commands.registerCommand('cairo.run', () => {
 		terminal.show();
 		var { currentOpenFile, outputFile } = getActiveFileNames();
-		terminal.sendText(". ~/cairo_venv/bin/activate && cairo-run --program='" + outputFile + "' --print_output --print_info --relocate_prints");
+		terminal.sendText(commandPrefix + "cairo-run --program='" + outputFile + "' --print_output --print_info --relocate_prints");
 	});
 	context.subscriptions.push(runCommand);
 
 	const runLayoutSmallCommand = commands.registerCommand('cairo.run.layout.small', () => {
 		terminal.show();
 		var { currentOpenFile, outputFile } = getActiveFileNames();
-		terminal.sendText(". ~/cairo_venv/bin/activate && cairo-run --program='" + outputFile + "' --print_output --print_info --relocate_prints --layout=small");
+		terminal.sendText(commandPrefix + "cairo-run --program='" + outputFile + "' --print_output --print_info --relocate_prints --layout=small");
 	});
 	context.subscriptions.push(runLayoutSmallCommand);
 }

@@ -37,8 +37,20 @@
 	"contributes": {
 		"configuration": {
 			"type": "object",
-			"title": "Language support for Cairo",
+			"title": "Cairo LS",
 			"properties": {
+				"cairols.useVenv": {
+					"scope": "resource",
+					"type": "boolean",
+					"default": true,
+					"description": "Whether to use a Python virtual environment for running the Cairo compiler."
+				},
+				"cairols.venvCommand": {
+					"scope": "resource",
+					"type": "string",
+					"default": ". ~/cairo_venv/bin/activate",
+					"description": "If useVenv is true, this is the command used by the extension to source the virtual environment before running Cairo commands."
+				},
 				"cairols.maxNumberOfProblems": {
 					"scope": "resource",
 					"type": "number",
