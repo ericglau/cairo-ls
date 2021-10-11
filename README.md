@@ -4,6 +4,8 @@
 
 This project implements a Cairo language server and VS Code extension to help with writing Cairo programs for StarkNet.
 
+**Note**: This is an early preview release and is still in active development.
+
 ![](images/main.gif)
 
 ## Features
