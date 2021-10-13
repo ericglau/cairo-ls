@@ -81,30 +81,39 @@ function registerCommands(context: ExtensionContext, useVenv: boolean, venvComma
 
 	const compileCommand = commands.registerCommand('cairo.compile', () => {
 		terminal.show();
-		var { currentOpenFile, outputFile } = getActiveFileNames();
-		terminal.sendText(commandPrefix + "cairo-compile '" + currentOpenFile + "' --output '" + outputFile + "'");
+		var names = getActiveFileNames();
+		terminal.sendText(commandPrefix + "cairo-compile '" + names.currentOpenFile + "' --output '" + names.outputFile + "'");
 	});
 	context.subscriptions.push(compileCommand);
 
 	const runCommand = commands.registerCommand('cairo.run', () => {
 		terminal.show();
-		var { currentOpenFile, outputFile } = getActiveFileNames();
-		terminal.sendText(commandPrefix + "cairo-run --program='" + outputFile + "' --print_output --print_info --relocate_prints");
+		var names = getActiveFileNames();
+		terminal.sendText(commandPrefix + "cairo-run --program='" + names.outputFile + "' --print_output --print_info --relocate_prints");
 	});
 	context.subscriptions.push(runCommand);
 
 	const runLayoutSmallCommand = commands.registerCommand('cairo.run.layout.small', () => {
 		terminal.show();
-		var { currentOpenFile, outputFile } = getActiveFileNames();
-		terminal.sendText(commandPrefix + "cairo-run --program='" + outputFile + "' --print_output --print_info --relocate_prints --layout=small");
+		var names = getActiveFileNames();
+		terminal.sendText(commandPrefix + "cairo-run --program='" + names.outputFile + "' --print_output --print_info --relocate_prints --layout=small");
 	});
 	context.subscriptions.push(runLayoutSmallCommand);
+
+	const compileStarknetCommand = commands.registerCommand('cairo.compile.starknet', () => {
+		terminal.show();
+		var names = getActiveFileNames();
+		terminal.sendText(commandPrefix + "starknet-compile '" + names.currentOpenFile + "' --output '" + names.outputFile + "' --abi '" + names.abiFile + "'");
+	});
+	context.subscriptions.push(compileStarknetCommand);
 }
 
 function getActiveFileNames() {
 	var currentOpenFile = window.activeTextEditor.document.fileName;
-	var outputFile = currentOpenFile.substring(0, currentOpenFile.lastIndexOf(".")) + "_compiled.json";
-	return { currentOpenFile, outputFile };
+	var fileNameWithoutExtension = currentOpenFile.substring(0, currentOpenFile.lastIndexOf("."));
+	var outputFile = fileNameWithoutExtension + "_compiled.json";
+	var abiFile = fileNameWithoutExtension + "_abi.json";
+	return { currentOpenFile, outputFile, abiFile };
 }
 
 export function deactivate(): Thenable<void> | undefined {

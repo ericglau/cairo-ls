@@ -29,9 +29,8 @@
 		"workspaceContains:**/*.cairo",
 		"onCommand:cairo.compile",
 		"onCommand:cairo.run",
-		"onCommand:cairo.upgrade",
-		"onCommand:cairo.get.eth.abi",
-		"onCommand:cairo.get.eth.bytecode"
+		"onCommand:cairo.run.layout.small",
+		"onCommand:cairo.compile.starknet"
 	],
 	"main": "./client/out/extension",
 	"contributes": {
@@ -80,6 +79,9 @@
 				},
 				{
 					"command": "cairo.run.layout.small"
+				},
+				{
+					"command": "cairo.compile.starknet"
 				}
 			],
 			"touchBar": [
@@ -91,6 +93,9 @@
 				},
 				{
 					"command": "cairo.run.layout.small"
+				},
+				{
+					"command": "cairo.compile.starknet"
 				}
 			],
 			"editor/context": [
@@ -102,6 +107,9 @@
 				},
 				{
 					"command": "cairo.run.layout.small"
+				},
+				{
+					"command": "cairo.compile.starknet"
 				}
 			]
 		},
@@ -120,6 +128,11 @@
 				"command": "cairo.run.layout.small",
 				"category": "Language support for Cairo",
 				"title": "Run Cairo program with small layout"
+			},
+			{
+				"command": "cairo.compile.starknet",
+				"category": "Language support for Cairo",
+				"title": "Compile StarkNet contract"
 			}
 		]
 	},
