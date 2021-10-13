@@ -38,17 +38,28 @@
 			"type": "object",
 			"title": "Cairo LS",
 			"properties": {
+				"cairols.highlightingCompiler": {
+					"scope": "resource",
+					"type": "string",
+					"enum": [
+						"autodetect",
+						"cairo",
+						"starknet"
+					],
+					"default": "autodetect",
+					"description": "Specifies which compiler to use for diagnostic highlighting."
+				},
 				"cairols.useVenv": {
 					"scope": "resource",
 					"type": "boolean",
 					"default": true,
-					"description": "Whether to use a Python virtual environment for running the Cairo compiler."
+					"description": "Whether to use a Python virtual environment for running the Cairo/StarkNet compiler."
 				},
 				"cairols.venvCommand": {
 					"scope": "resource",
 					"type": "string",
 					"default": ". ~/cairo_venv/bin/activate",
-					"description": "If useVenv is true, this is the command used by the extension to source the virtual environment before running Cairo commands."
+					"description": "If useVenv is true, this is the command used by the extension to source the virtual environment before running Cairo/StarkNet commands."
 				},
 				"cairols.maxNumberOfProblems": {
 					"scope": "resource",

@@ -135,17 +135,19 @@ connection.onInitialized(() => {
 });
 
 interface CairoLSSettings {
+	highlightingCompiler: string;
 	maxNumberOfProblems: number;
 	useVenv: boolean;
 	venvCommand: string;
 }
 
+const DEFAULT_HIGHLIGHTING_COMPILER = "autodetect";
 const DEFAULT_MAX_PROBLEMS = 100;
 const DEFAULT_USE_VENV = true;
 const DEFAULT_VENV_COMMAND = ". ~/cairo_venv/bin/activate";
 
 
-let defaultSettings: CairoLSSettings = { maxNumberOfProblems: DEFAULT_MAX_PROBLEMS, useVenv: DEFAULT_USE_VENV, venvCommand: DEFAULT_VENV_COMMAND };
+let defaultSettings: CairoLSSettings = { highlightingCompiler: DEFAULT_HIGHLIGHTING_COMPILER, maxNumberOfProblems: DEFAULT_MAX_PROBLEMS, useVenv: DEFAULT_USE_VENV, venvCommand: DEFAULT_VENV_COMMAND };
 let globalSettings: CairoLSSettings = defaultSettings;
 
 // Cache the settings of all open documents
@@ -216,7 +218,7 @@ async function validateTextDocument(textDocument: TextDocument): Promise<void> {
 		commandPrefix = settings.venvCommand + " && ";
 	}
 
-	await exec(commandPrefix + "cd " + tempFolder + " && " + getCompileCommand(textDocumentContents), (error: { message: any; }, stdout: any, stderr: any) => {
+	await exec(commandPrefix + "cd " + tempFolder + " && " + getCompileCommand(settings, textDocumentContents), (error: { message: any; }, stdout: any, stderr: any) => {
 		if (error) {
 			connection.console.log(`Found compile error: ${error.message}`);
 			let errorLocations: ErrorLocation[] = findErrorLocations(error.message);
@@ -268,38 +270,48 @@ async function validateTextDocument(textDocument: TextDocument): Promise<void> {
 /**
  * Gets the compile command (using Cairo or StarkNet compiler) based on whether "%lang starknet" is defined in the document.
  * 
+ * @param settings Cairo LS settings
  * @param textDocumentContents The current document contents.
  * @returns The Cairo or StarkNet compile command.
  */
-function getCompileCommand(textDocumentContents?: string): string {
+function getCompileCommand(settings: CairoLSSettings, textDocumentContents?: string): string {
 	const CAIRO_COMPILE_COMMAND = "cairo-compile " + CAIRO_TEMP_FILE_NAME + " --output temp_compiled.json";
 	const STARKNET_COMPILE_COMMAND = "starknet-compile " + CAIRO_TEMP_FILE_NAME + " --output temp_compiled.json --abi temp_abi.json";
 
-	if (textDocumentContents === undefined) {
-		connection.console.log(`Could not read text document contents`);
+	var compiler = settings.highlightingCompiler;
+	if (compiler === "starknet") {
+		return STARKNET_COMPILE_COMMAND;
+	} else if (compiler === "cairo") {
+		return CAIRO_COMPILE_COMMAND;
+	} else {
+		// Auto-detect which compiler to use
+		if (textDocumentContents === undefined) {
+			connection.console.log(`Could not read text document contents`);
+			return CAIRO_COMPILE_COMMAND;
+		}
+		// for each directive, see if it uses StarkNet lang
+		var lines = textDocumentContents.split('\n');
+		var directivesFound: boolean = false;
+		for (var i = 0; i < lines.length; i++) {
+			var line: string = lines[i].trim();
+			if (line.length == 0 || line.startsWith("#")) { // ignore whitespace or comments
+				continue;
+			}
+			if (line.startsWith("%")) {
+				directivesFound = true;
+				if (line === "%lang starknet") {
+					connection.console.log(`Running StarkNet compile`);
+					return STARKNET_COMPILE_COMMAND;
+				}
+			} else if (directivesFound) {
+				// end of directives
+				break;
+			}
+		}
+		connection.console.log(`Running Cairo compile`);
 		return CAIRO_COMPILE_COMMAND;
 	}
-	// for each line that starts with a %, see if it contains %lang
-	var lines = textDocumentContents.split('\n');
-	var directivesFound: boolean = false;
-	for (var i = 0; i < lines.length; i++) {
-		var line: string = lines[i].trim();
-		if (line.length == 0 || line.startsWith("#")) { // ignore whitespace or comments
-			continue;
-		}
-		if (line.startsWith("%")) {
-			directivesFound = true;
-			if (line === "%lang starknet") {
-				connection.console.log(`Running StarkNet compile`);
-				return STARKNET_COMPILE_COMMAND;
-			}
-		} else if (directivesFound) {
-			// end of directives
-			break;
-		}
-	}
-	connection.console.log(`Running Cairo compile`);
-	return CAIRO_COMPILE_COMMAND;
+
 }
 
 connection.onDidChangeWatchedFiles(_change => {
