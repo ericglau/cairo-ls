@@ -268,7 +268,8 @@ async function validateTextDocument(textDocument: TextDocument): Promise<void> {
 }
 
 /**
- * Gets the compile command (using Cairo or StarkNet compiler) based on whether "%lang starknet" is defined in the document.
+ * Gets the compile command (using Cairo or StarkNet compiler).
+ * If highlighing compiler setting is set to autodetect, this is based on whether "%lang starknet" is defined in the directives.
  * 
  * @param settings Cairo LS settings
  * @param textDocumentContents The current document contents.
@@ -276,7 +277,7 @@ async function validateTextDocument(textDocument: TextDocument): Promise<void> {
  */
 function getCompileCommand(settings: CairoLSSettings, textDocumentContents?: string): string {
 	const CAIRO_COMPILE_COMMAND = "cairo-compile " + CAIRO_TEMP_FILE_NAME + " --output temp_compiled.json";
-	const STARKNET_COMPILE_COMMAND = "starknet-compile " + CAIRO_TEMP_FILE_NAME + " --output temp_compiled.json --abi temp_abi.json";
+	const STARKNET_COMPILE_COMMAND = "starknet-compile " + CAIRO_TEMP_FILE_NAME + " --output temp_compiled.json";
 
 	var compiler = settings.highlightingCompiler;
 	if (compiler === "starknet") {
