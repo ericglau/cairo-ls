@@ -135,17 +135,19 @@ connection.onInitialized(() => {
 });
 
 interface CairoLSSettings {
+	highlightingCompiler: string;
 	maxNumberOfProblems: number;
 	useVenv: boolean;
 	venvCommand: string;
 }
 
+const DEFAULT_HIGHLIGHTING_COMPILER = "cairo";
 const DEFAULT_MAX_PROBLEMS = 100;
 const DEFAULT_USE_VENV = true;
 const DEFAULT_VENV_COMMAND = ". ~/cairo_venv/bin/activate";
 
 
-let defaultSettings: CairoLSSettings = { maxNumberOfProblems: DEFAULT_MAX_PROBLEMS, useVenv: DEFAULT_USE_VENV, venvCommand: DEFAULT_VENV_COMMAND };
+let defaultSettings: CairoLSSettings = { highlightingCompiler: DEFAULT_HIGHLIGHTING_COMPILER, maxNumberOfProblems: DEFAULT_MAX_PROBLEMS, useVenv: DEFAULT_USE_VENV, venvCommand: DEFAULT_VENV_COMMAND };
 let globalSettings: CairoLSSettings = defaultSettings;
 
 // Cache the settings of all open documents
@@ -216,7 +218,9 @@ async function validateTextDocument(textDocument: TextDocument): Promise<void> {
 		commandPrefix = settings.venvCommand + " && ";
 	}
 
-	await exec(commandPrefix + "cd " + tempFolder + " && cairo-compile " + CAIRO_TEMP_FILE_NAME + " --output temp_compiled.json", (error: { message: any; }, stdout: any, stderr: any) => {
+	var compileCommand = getCompileCommand(settings);
+
+	await exec(commandPrefix + "cd " + tempFolder + " && " + compileCommand, (error: { message: any; }, stdout: any, stderr: any) => {
 		if (error) {
 			connection.console.log(`Found compile error: ${error.message}`);
 			let errorLocations: ErrorLocation[] = findErrorLocations(error.message);
@@ -262,6 +266,15 @@ async function validateTextDocument(textDocument: TextDocument): Promise<void> {
 
 		// Send the computed diagnostics to VSCode.
 		connection.sendDiagnostics({ uri: textDocument.uri, diagnostics });
+	}
+}
+
+function getCompileCommand(settings: CairoLSSettings): string {
+	var compiler = settings.highlightingCompiler;
+	if (compiler === "starknet") {
+		return "starknet-compile " + CAIRO_TEMP_FILE_NAME + " --output temp_compiled.json --abi temp_abi.json";
+	} else {
+		return "cairo-compile " + CAIRO_TEMP_FILE_NAME + " --output temp_compiled.json";
 	}
 }
 
