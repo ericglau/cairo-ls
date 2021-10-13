@@ -216,7 +216,7 @@ async function validateTextDocument(textDocument: TextDocument): Promise<void> {
 		commandPrefix = settings.venvCommand + " && ";
 	}
 
-	await exec(commandPrefix + "cd " + tempFolder + " && cairo-compile " + CAIRO_TEMP_FILE_NAME + " --output temp_compiled.json", (error: { message: any; }, stdout: any, stderr: any) => {
+	await exec(commandPrefix + "cd " + tempFolder + " && " + getCompileCommand(textDocumentContents), (error: { message: any; }, stdout: any, stderr: any) => {
 		if (error) {
 			connection.console.log(`Found compile error: ${error.message}`);
 			let errorLocations: ErrorLocation[] = findErrorLocations(error.message);
@@ -263,6 +263,43 @@ async function validateTextDocument(textDocument: TextDocument): Promise<void> {
 		// Send the computed diagnostics to VSCode.
 		connection.sendDiagnostics({ uri: textDocument.uri, diagnostics });
 	}
+}
+
+/**
+ * Gets the compile command (using Cairo or StarkNet compiler) based on whether "%lang starknet" is defined in the document.
+ * 
+ * @param textDocumentContents The current document contents.
+ * @returns The Cairo or StarkNet compile command.
+ */
+function getCompileCommand(textDocumentContents?: string): string {
+	const CAIRO_COMPILE_COMMAND = "cairo-compile " + CAIRO_TEMP_FILE_NAME + " --output temp_compiled.json";
+	const STARKNET_COMPILE_COMMAND = "starknet-compile " + CAIRO_TEMP_FILE_NAME + " --output temp_compiled.json --abi temp_abi.json";
+
+	if (textDocumentContents === undefined) {
+		connection.console.log(`Could not read text document contents`);
+		return CAIRO_COMPILE_COMMAND;
+	}
+	// for each line that starts with a %, see if it contains %lang
+	var lines = textDocumentContents.split('\n');
+	var directivesFound: boolean = false;
+	for (var i = 0; i < lines.length; i++) {
+		var line: string = lines[i].trim();
+		if (line.length == 0 || line.startsWith("#")) { // ignore whitespace or comments
+			continue;
+		}
+		if (line.startsWith("%")) {
+			directivesFound = true;
+			if (line === "%lang starknet") {
+				connection.console.log(`Running StarkNet compile`);
+				return STARKNET_COMPILE_COMMAND;
+			}
+		} else if (directivesFound) {
+			// end of directives
+			break;
+		}
+	}
+	connection.console.log(`Running Cairo compile`);
+	return CAIRO_COMPILE_COMMAND;
 }
 
 connection.onDidChangeWatchedFiles(_change => {
