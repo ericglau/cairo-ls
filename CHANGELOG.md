@@ -1,5 +1,9 @@
 # Change Log
 
+## 0.0.4
+
+Supports auto-detecting StarkNet contracts or manually choosing a compiler for diagnostic highlighting.
+
 ## 0.0.3
 
 Support running from a venv by default.

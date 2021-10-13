@@ -10,14 +10,16 @@ This project implements a Cairo language server and VS Code extension to help wi
 
 ## Features
 
-- Compiler support for Cairo .cairo files
-- Live diagnostic highlighting for Cairo compile errors without needing to save the file
-- Quick fixes with suggestions provided by Cairo compiler
+- Compiler support for Cairo/StarkNet .cairo files
+- Auto-detects StarkNet contracts
+- Live diagnostic highlighting for Cairo/StarkNet compile errors without needing to save the file
+- Quick fixes with suggestions provided by Cairo/StarkNet compiler
 - Hover documentation (minimal for now)
 - Snippet insertion for Cairo templates (minimal for now)
 
 Right-click menu commands to interact with Cairo:
 - Compile Cairo program
+- Compile StarkNet contract
 - Run Cairo program
 
 ## Setup
