@@ -107,6 +107,11 @@ connection.onInitialize((params: InitializeParams) => {
 		connection.console.log(`Workspace folders: ${delimitedWorkspaceFolders}`);
 	}
 
+	if (delimitedWorkspaceFolders == null && params.rootUri != null) {
+		delimitedWorkspaceFolders = uri2path(params.rootUri);
+		connection.console.log(`Workspace folder: ${delimitedWorkspaceFolders}`);
+	}
+
 	const result: InitializeResult = {
 		capabilities: {
 			textDocumentSync: TextDocumentSyncKind.Full,
