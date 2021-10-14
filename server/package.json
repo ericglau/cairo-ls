@@ -20,7 +20,8 @@
 		"request-promise": "4.2.5",
 		"vscode-languageserver": "^6.1.1",
 		"vscode-languageserver-textdocument": "^1.0.1",
-		"web3": "^1.6.0"
+		"web3": "^1.6.0",
+		"file-uri-to-path": "^2.0.0"
 	},
 	"scripts": {}
 }

@@ -1,5 +1,9 @@
 # Change Log
 
+## 0.0.6
+
+Fix dependencies.
+
 ## 0.0.5
 
 Support imports from different modules.
