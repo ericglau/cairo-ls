@@ -61,8 +61,12 @@ const { indexOfRegex, lastIndexOfRegex } = require('index-of-regex')
 const fs = require('fs')
 const os = require('os')
 const path = require('path')
+const uri2path = require('file-uri-to-path');
 
 let tempFolder: string;
+
+/** Colon delimited workspace folders for use as Cairo path */
+let delimitedWorkspaceFolders: string;
 
 connection.onInitialize((params: InitializeParams) => {
 
@@ -91,6 +95,17 @@ connection.onInitialize((params: InitializeParams) => {
 		capabilities.textDocument.publishDiagnostics &&
 		capabilities.textDocument.publishDiagnostics.relatedInformation
 	);
+
+	if (hasWorkspaceFolderCapability && params.workspaceFolders != null) {
+		params.workspaceFolders.forEach(folder => {
+			if (delimitedWorkspaceFolders == null) {
+				delimitedWorkspaceFolders = uri2path(folder.uri);
+			} else {
+				delimitedWorkspaceFolders += ":" + uri2path(folder.uri);
+			}
+		});
+		connection.console.log(`Workspace folders: ${delimitedWorkspaceFolders}`);
+	}
 
 	const result: InitializeResult = {
 		capabilities: {
@@ -276,8 +291,12 @@ async function validateTextDocument(textDocument: TextDocument): Promise<void> {
  * @returns The Cairo or StarkNet compile command.
  */
 function getCompileCommand(settings: CairoLSSettings, textDocumentContents?: string): string {
-	const CAIRO_COMPILE_COMMAND = "cairo-compile " + CAIRO_TEMP_FILE_NAME + " --output temp_compiled.json";
-	const STARKNET_COMPILE_COMMAND = "starknet-compile " + CAIRO_TEMP_FILE_NAME + " --output temp_compiled.json";
+	let cairoPathParam = "";
+	if (delimitedWorkspaceFolders != null && delimitedWorkspaceFolders.length > 0) {
+		cairoPathParam = "--cairo_path="+delimitedWorkspaceFolders+" ";
+	}
+	const CAIRO_COMPILE_COMMAND = "cairo-compile " + cairoPathParam + CAIRO_TEMP_FILE_NAME + " --output temp_compiled.json";
+	const STARKNET_COMPILE_COMMAND = "starknet-compile " + cairoPathParam + CAIRO_TEMP_FILE_NAME + " --output temp_compiled.json";
 
 	var compiler = settings.highlightingCompiler;
 	if (compiler === "starknet") {

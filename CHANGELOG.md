@@ -1,5 +1,9 @@
 # Change Log
 
+## 0.0.5
+
+Support imports from different modules.
+
 ## 0.0.4
 
 Supports auto-detecting StarkNet contracts or manually choosing a compiler for diagnostic highlighting.
