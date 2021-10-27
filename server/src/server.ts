@@ -28,7 +28,9 @@ import {
 	WorkspaceEdit,
 	HoverParams,
 	Hover,
-	Position
+	Position,
+	LocationLink,
+	DefinitionLink
 } from 'vscode-languageserver';
 
 import {
@@ -128,7 +130,8 @@ connection.onInitialize((params: InitializeParams) => {
 			},
 			codeActionProvider: {
 				codeActionKinds: [CodeActionKind.QuickFix]
-			}
+			},
+			definitionProvider: true
 		}
 	};
 	if (hasWorkspaceFolderCapability) {
@@ -140,6 +143,17 @@ connection.onInitialize((params: InitializeParams) => {
 	}
 
 	return result;
+});
+
+connection.onDefinition((params) => {
+
+	let range : Range = {
+		start: { character : 0, line : 0 },
+		end: { character : 0, line : 1 }
+	}
+	let link : LocationLink = LocationLink.create(params.textDocument.uri, range, range);
+
+	return [ link ];
 });
 
 connection.onInitialized(() => {
