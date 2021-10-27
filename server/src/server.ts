@@ -250,6 +250,7 @@ end
 				}
 				let link : LocationLink = LocationLink.create(moduleUrl, entireRange, entireRange);
 				links.push(link);
+				break;
 			} else if (word === functionName) {
 				connection.console.log(`Going to definition for function: ${moduleName}`);
 
@@ -291,9 +292,10 @@ end
 				continue;
 			}
 			if (line.startsWith("func") && line.length > 5 && line.charAt(4).match(/\s/)) { // look for functions
-				let functionNameStartIndex = line.indexOf(word);
-				let functionNameEndIndex = line.indexOf('{');
-				if (functionNameStartIndex >= 0 && functionNameEndIndex > functionNameStartIndex && line.substring(functionNameStartIndex, functionNameEndIndex).trim() === word) {
+				let lineTrim = line.substring(5, line.length).trim();
+				let functionNameStartIndex = 0;
+				let functionNameEndIndex = lineTrim.indexOf('{');
+				if (functionNameEndIndex > functionNameStartIndex && lineTrim.substring(functionNameStartIndex, functionNameEndIndex).trim() === word) {
 					connection.console.log(`Found function within the same module: ${line}`);
 					let functionLineRange : Range = {
 						start: { character : 0, line : i },
@@ -850,9 +852,9 @@ function getWord(text: string, index: number, includeDot: boolean) {
 	var endSubstring = text.substring(index, text.length);
 	var boundaryRegex;
 	if (includeDot) {
-		boundaryRegex = /[^0-9a-zA-Z.]{1}/g; // boundaries are: not alphanumeric or dot
+		boundaryRegex = /[^0-9a-zA-Z_.]{1}/g; // boundaries are: not alphanumeric or _ or dot
 	} else {
-		boundaryRegex = /[^0-9a-zA-Z]{1}/g; // boundaries are: not alphanumeric or dot
+		boundaryRegex = /[^0-9a-zA-Z_]{1}/g; // boundaries are: not alphanumeric or _
 	}
 	var first = lastIndexOfRegex(beginSubstring, boundaryRegex) + 1;
 	var last = index + indexOfRegex(endSubstring, boundaryRegex);
