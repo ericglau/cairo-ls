@@ -233,38 +233,56 @@ end
 
 		connection.console.log(`Imports map size: ${imports.size}`);
 
-		let modulePath = undefined;
-		let moduleUrl = undefined;
-		let functionRange = undefined;
-
 		for (const [functionName, moduleName] of imports.entries()) {
 			if (wordWithDot === moduleName) {
 				connection.console.log(`Going to definition for module: ${moduleName}`);
 
-				if (moduleUrl === undefined && modulePath === undefined) {
-					({ moduleUrl, modulePath } = getModuleURI(moduleName));
+				let { moduleUrl, modulePath } = getModuleURI(moduleName);
+				if (moduleUrl === undefined || modulePath === undefined) {
+					break;
 				}
+
+				let entireRange : Range = {
+					start: { character : 0, line : 0 },
+					end: { character : 0, line : 9999 }
+				}
+				let link : LocationLink = LocationLink.create(moduleUrl, entireRange, entireRange);
+				return [ link ];	
+	
 			} else if (word === functionName) {
 				connection.console.log(`Going to definition for function: ${moduleName}`);
 
-				if (moduleUrl === undefined && modulePath === undefined) {
-					({ moduleUrl, modulePath } = getModuleURI(moduleName));
+				let { moduleUrl, modulePath } = getModuleURI(moduleName);
+				if (moduleUrl === undefined || modulePath === undefined) {
+					break;
+				}
+
+				// Get function location
+				let moduleContents : string = fs.readFileSync(modulePath, 'utf8');
+				let lines = moduleContents.split('\n');
+				for (var i = 0; i < lines.length; i++) {
+					let line: string = lines[i].trim();
+					if (line.length == 0 || line.startsWith("#")) { // ignore whitespace or comments
+						continue;
+					}
+					if (line.startsWith("func") && line.length > 5 && line.charAt(4).match(/\s/)) { // look for functions
+						let functionNameStartIndex = line.indexOf(functionName);
+						let functionNameEndIndex = line.indexOf('{');
+						if (functionNameStartIndex >= 0 && functionNameEndIndex > functionNameStartIndex && line.substring(functionNameStartIndex, functionNameEndIndex).trim() === functionName) {
+							connection.console.log(`Found function: ${line}`);
+							let functionLineRange : Range = {
+								start: { character : 0, line : i },
+								end: { character : 999, line : i }
+							}
+							let link : LocationLink = LocationLink.create(moduleUrl, functionLineRange, functionLineRange);
+							return [ link ];
+						}
+					}
 				}
 			}
 		}
 
-		if (moduleUrl !== undefined && modulePath !== undefined) {
-			//let moduleContents : string = fs.readFileSync(modulePath, 'utf8');
-			
-			let entireRange : Range = {
-				start: { character : 0, line : 0 },
-				end: { character : 0, line : 9999 }
-			}
-			let link : LocationLink = LocationLink.create(moduleUrl, entireRange, entireRange);
-			return [ link ];	
-		} else {
-			return undefined;
-		}
+		return undefined;
 	}
 
 
