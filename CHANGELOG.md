@@ -1,5 +1,9 @@
 # Change Log
 
+## 0.0.8
+
+Initial support for go to definitions.
+
 ## 0.0.7
 
 Fixes workspace root detection if not using multiple folders.
