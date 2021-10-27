@@ -1,4 +1,3 @@
-import { stringify } from 'querystring';
 /* --------------------------------------------------------------------------------------------
  * Copyright for portions from https://github.com/microsoft/vscode-extension-samples/tree/master/lsp-sample 
  * are held by (c) Microsoft Corporation. All rights reserved.
@@ -29,8 +28,7 @@ import {
 	HoverParams,
 	Hover,
 	Position,
-	LocationLink,
-	DefinitionLink
+	LocationLink
 } from 'vscode-languageserver';
 
 import {
@@ -64,6 +62,7 @@ const fs = require('fs')
 const os = require('os')
 const path = require('path')
 const uri2path = require('file-uri-to-path');
+const url = require('url');
 
 let tempFolder: string;
 
@@ -147,13 +146,136 @@ connection.onInitialize((params: InitializeParams) => {
 
 connection.onDefinition((params) => {
 
-	let range : Range = {
-		start: { character : 0, line : 0 },
-		end: { character : 0, line : 1 }
-	}
-	let link : LocationLink = LocationLink.create(params.textDocument.uri, range, range);
+	// from contracts.Initializable import initialized, initialize
 
-	return [ link ];
+	// TODO: support this syntax:
+	// from starkware.cairo.common.math import (
+	//	assert_not_zero, assert_not_equal)
+
+	/*
+
+@external
+func initialized{ storage_ptr: Storage*, pedersen_ptr: HashBuiltin*, range_check_ptr }() -> (res: felt):
+    let (res) = _initialized.read()
+    return (res=res)
+end
+
+@external
+func initialize{ storage_ptr: Storage*, pedersen_ptr: HashBuiltin*, range_check_ptr }():
+    let (initialized) = _initialized.read()
+    assert initialized = 0
+    _initialized.write(1)
+    return ()
+end
+
+	*/
+
+	connection.console.log(`Getting ready to import`);
+
+	// TODO parse imports on document change and cache them
+
+	// map of functions to the module it was imported from
+	let imports : Map<string, string> = new Map();
+
+	// parse imports
+	let textDocumentFromURI = documents.get(params.textDocument.uri)
+	let textDocumentContents = textDocumentFromURI?.getText()
+	if (textDocumentContents === undefined) {
+		connection.console.log(`Could not read text document contents`);
+		return undefined;
+	}
+	// for each import, populate the map
+	var lines = textDocumentContents.split('\n');
+	var fromFound: boolean = false;
+	for (var i = 0; i < lines.length; i++) {
+		var line: string = lines[i].trim();
+		if (line.length == 0 || line.startsWith("#")) { // ignore whitespace or comments
+			continue;
+		}
+		if (line.startsWith("from")) {
+			fromFound = true;
+			let tokens = line.split(/\s+/); // split by whitespace
+			if (tokens.length < 4 || tokens[0] !== "from" || tokens[2] !== "import") {
+				connection.console.log(`Could not parse import: ${line}`);
+				return undefined;
+			}
+			for (let i = 3; i<tokens.length; i++) {
+				let moduleName = tokens[1]
+				let functionName = tokens[i];
+				if (functionName.endsWith(',')) {
+					functionName = functionName.substring(0, functionName.length - 1);
+				}
+				imports.set(functionName, moduleName);
+				connection.console.log(`Added import to map: ${functionName} from ${moduleName}`);
+			}
+		} else if (fromFound) {
+			// end of imports
+			break;
+		}
+	}
+
+	let position = params.position
+	if (textDocumentFromURI !== undefined) {
+		let start = {
+			line: position.line,
+			character: 0,
+		};
+		let end = {
+			line: position.line + 1,
+			character: 0,
+		};
+		let text = textDocumentFromURI.getText({ start, end });
+		let index = textDocumentFromURI.offsetAt(position) - textDocumentFromURI.offsetAt(start);
+		let wordWithDot = getWord(text, index, true);
+		connection.console.log(`Current word with dot: ${wordWithDot}`);
+		let word = getWord(text, index, false);
+		connection.console.log(`Current word: ${word}`);
+
+		connection.console.log(`Imports map size: ${imports.size}`);
+
+		let modulePath = undefined;
+		let moduleUrl = undefined;
+
+		for (const [functionName, moduleName] of imports.entries()) {
+			if (wordWithDot === moduleName) {
+				connection.console.log(`Going to definition for module: ${moduleName}`);
+
+				let moduleRelativePath = moduleName.split('.').join('/') + ".cairo";
+				
+				// get relative module
+				if (delimitedWorkspaceFolders != null && delimitedWorkspaceFolders.length > 0) {
+					// TODO get modules relative to folders in actual CAIRO_PATH as well
+					delimitedWorkspaceFolders.split(';').forEach(element => {
+						let possibleModulePath = path.join(element, moduleRelativePath);
+						connection.console.log(`Possible module path: ${possibleModulePath}`);
+
+						if (fs.existsSync(possibleModulePath)) {
+							connection.console.log(`Module exists: ${possibleModulePath}`);
+							moduleUrl = url.pathToFileURL(possibleModulePath);
+							modulePath = possibleModulePath;
+							connection.console.log(`Module URL: ${moduleUrl}`);
+	
+						}
+					});
+				}
+			}
+		}
+
+		if (moduleUrl != undefined && modulePath != undefined) {
+			//let moduleContents : string = fs.readFileSync(modulePath, 'utf8');
+			
+			let range : Range = {
+				start: { character : 0, line : 0 },
+				end: { character : 0, line : 9999 }
+			}
+			let link : LocationLink = LocationLink.create(moduleUrl, range, range);
+			return [ link ];	
+		} else {
+			return undefined;
+		}
+	}
+
+
 });
 
 connection.onInitialized(() => {
