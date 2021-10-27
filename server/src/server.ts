@@ -235,40 +235,32 @@ end
 
 		let modulePath = undefined;
 		let moduleUrl = undefined;
+		let functionRange = undefined;
 
 		for (const [functionName, moduleName] of imports.entries()) {
 			if (wordWithDot === moduleName) {
 				connection.console.log(`Going to definition for module: ${moduleName}`);
 
-				let moduleRelativePath = moduleName.split('.').join('/') + ".cairo";
-				
-				// get relative module
-				if (delimitedWorkspaceFolders != null && delimitedWorkspaceFolders.length > 0) {
-					// TODO get modules relative to folders in actual CAIRO_PATH as well
-					delimitedWorkspaceFolders.split(';').forEach(element => {
-						let possibleModulePath = path.join(element, moduleRelativePath);
-						connection.console.log(`Possible module path: ${possibleModulePath}`);
+				if (moduleUrl === undefined && modulePath === undefined) {
+					({ moduleUrl, modulePath } = getModuleURI(moduleName));
+				}
+			} else if (word === functionName) {
+				connection.console.log(`Going to definition for function: ${moduleName}`);
 
-						if (fs.existsSync(possibleModulePath)) {
-							connection.console.log(`Module exists: ${possibleModulePath}`);
-							moduleUrl = url.pathToFileURL(possibleModulePath);
-							modulePath = possibleModulePath;
-							connection.console.log(`Module URL: ${moduleUrl}`);
-	
-						}
-					});
+				if (moduleUrl === undefined && modulePath === undefined) {
+					({ moduleUrl, modulePath } = getModuleURI(moduleName));
 				}
 			}
 		}
 
-		if (moduleUrl != undefined && modulePath != undefined) {
+		if (moduleUrl !== undefined && modulePath !== undefined) {
 			//let moduleContents : string = fs.readFileSync(modulePath, 'utf8');
 			
-			let range : Range = {
+			let entireRange : Range = {
 				start: { character : 0, line : 0 },
 				end: { character : 0, line : 9999 }
 			}
-			let link : LocationLink = LocationLink.create(moduleUrl, range, range);
+			let link : LocationLink = LocationLink.create(moduleUrl, entireRange, entireRange);
 			return [ link ];	
 		} else {
 			return undefined;
@@ -322,6 +314,30 @@ connection.onDidChangeConfiguration(change => {
 	// Revalidate all open text documents
 	documents.all().forEach(validateTextDocument);
 });
+
+function getModuleURI(moduleName: string) {
+	let moduleRelativePath = moduleName.split('.').join('/') + ".cairo";
+	let moduleUrl = undefined;
+	let modulePath = undefined;
+
+	if (delimitedWorkspaceFolders != null && delimitedWorkspaceFolders.length > 0) {
+		// TODO get modules relative to folders in actual CAIRO_PATH as well
+		
+		for (let element of delimitedWorkspaceFolders.split(';')) {
+			let possibleModulePath = path.join(element, moduleRelativePath);
+			connection.console.log(`Possible module path: ${possibleModulePath}`);
+
+			if (fs.existsSync(possibleModulePath)) {
+				connection.console.log(`Module exists: ${possibleModulePath}`);
+				moduleUrl = url.pathToFileURL(possibleModulePath);
+				modulePath = possibleModulePath;
+				connection.console.log(`Module URL: ${moduleUrl}`);
+				break;
+			}
+		}
+	}
+	return { moduleUrl, modulePath };
+}
 
 function getDocumentSettings(resource: string): Thenable<CairoLSSettings> {
 	if (!hasConfigurationCapability) {
