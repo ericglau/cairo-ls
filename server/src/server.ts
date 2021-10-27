@@ -214,6 +214,8 @@ end
 		}
 	}
 
+	let links : LocationLink[] = [];
+
 	let position = params.position
 	if (textDocumentFromURI !== undefined) {
 		let start = {
@@ -247,8 +249,7 @@ end
 					end: { character : 0, line : 9999 }
 				}
 				let link : LocationLink = LocationLink.create(moduleUrl, entireRange, entireRange);
-				return [ link ];	
-	
+				links.push(link);
 			} else if (word === functionName) {
 				connection.console.log(`Going to definition for function: ${moduleName}`);
 
@@ -275,14 +276,36 @@ end
 								end: { character : 999, line : i }
 							}
 							let link : LocationLink = LocationLink.create(moduleUrl, functionLineRange, functionLineRange);
-							return [ link ];
+							links.push(link);
 						}
 					}
 				}
 			}
 		}
 
-		return undefined;
+		// Get function location
+		let lines = textDocumentContents.split('\n');
+		for (var i = 0; i < lines.length; i++) {
+			let line: string = lines[i].trim();
+			if (line.length == 0 || line.startsWith("#")) { // ignore whitespace or comments
+				continue;
+			}
+			if (line.startsWith("func") && line.length > 5 && line.charAt(4).match(/\s/)) { // look for functions
+				let functionNameStartIndex = line.indexOf(word);
+				let functionNameEndIndex = line.indexOf('{');
+				if (functionNameStartIndex >= 0 && functionNameEndIndex > functionNameStartIndex && line.substring(functionNameStartIndex, functionNameEndIndex).trim() === word) {
+					connection.console.log(`Found function within the same module: ${line}`);
+					let functionLineRange : Range = {
+						start: { character : 0, line : i },
+						end: { character : 999, line : i }
+					}
+					let link : LocationLink = LocationLink.create(params.textDocument.uri, functionLineRange, functionLineRange);
+					links.push(link);
+				}
+			}
+		}
+
+		return links;
 	}
 
 
