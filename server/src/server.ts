@@ -48,7 +48,7 @@ let hasWorkspaceFolderCapability: boolean = false;
 let hasDiagnosticRelatedInformationCapability: boolean = false;
 
 const NAME: string = 'Cairo LS';
-
+const DEFAULT_PACKAGE_LOCATION = "~/cairo_venv/lib/python3.7/site-packages";
 const DIAGNOSTIC_TYPE_COMPILE_ERROR: string = 'CompileError';
 
 let cairoTempIndexFile: string;
@@ -66,8 +66,10 @@ const url = require('url');
 
 let tempFolder: string;
 
-/** Colon delimited workspace folders for use as Cairo path */
+/** Semicolon delimited workspace folders for use as local Cairo path */
 let delimitedWorkspaceFolders: string;
+
+let packageSearchPaths: string;
 
 connection.onInitialize((params: InitializeParams) => {
 
@@ -144,7 +146,46 @@ connection.onInitialize((params: InitializeParams) => {
 	return result;
 });
 
-connection.onDefinition((params) => {
+async function getPythonLibraryLocation(uri: string): Promise<string> {
+	// pip show cairo-lang | grep Location
+	let textDocumentFromURI = documents.get(uri)
+	if (textDocumentFromURI === undefined) {
+		connection.console.log(`Could not read text document for uri ${uri}`);
+		return DEFAULT_PACKAGE_LOCATION;
+	}
+	let settings = await getDocumentSettings(textDocumentFromURI.uri);
+
+	const commandPrefix = getCommandPrefix(settings);
+
+	try {
+		const util = require('util');
+		const exec = util.promisify(require('child_process').exec);
+		const { stdout } = await exec(commandPrefix + "pip show cairo-lang | grep Location");
+		connection.console.log('stdout:' + stdout);
+		const LOCATION_PREFIX = "Location: ";
+		if (stdout.includes(LOCATION_PREFIX)) {
+			const packageLocation = stdout.substring(LOCATION_PREFIX.length).trim();
+			connection.console.log(`Package location: ${packageLocation}`);
+			return packageLocation;
+		} else {
+			connection.console.log(`Could not parse cairo-lang package location from string '${stdout}', defaulting to: ${DEFAULT_PACKAGE_LOCATION}`);
+			return DEFAULT_PACKAGE_LOCATION;
+		}
+	} catch (e) {
+		connection.console.log(`Could not get cairo-lang package location from Python, defaulting to: ${DEFAULT_PACKAGE_LOCATION}. Error: ${e}`);
+		return DEFAULT_PACKAGE_LOCATION;
+	}
+
+}
+
+connection.onDefinition(async (params) => {
+
+	if (packageSearchPaths === undefined) {
+		const packageLocation = await getPythonLibraryLocation(params.textDocument.uri);
+		packageSearchPaths = delimitedWorkspaceFolders + ";" + packageLocation;
+		connection.console.log(`Package search paths: ${packageSearchPaths}`);
+
+	}
 
 	// from contracts.Initializable import initialized, initialize
 
@@ -363,10 +404,10 @@ function getModuleURI(moduleName: string) {
 	let moduleUrl = undefined;
 	let modulePath = undefined;
 
-	if (delimitedWorkspaceFolders != null && delimitedWorkspaceFolders.length > 0) {
+	if (packageSearchPaths != null && packageSearchPaths.length > 0) {
 		// TODO get modules relative to folders in actual CAIRO_PATH as well
 		
-		for (let element of delimitedWorkspaceFolders.split(';')) {
+		for (let element of packageSearchPaths.split(';')) {
 			let possibleModulePath = path.join(element, moduleRelativePath);
 			connection.console.log(`Possible module path: ${possibleModulePath}`);
 
@@ -428,10 +469,7 @@ async function validateTextDocument(textDocument: TextDocument): Promise<void> {
 		connection.console.log(`Temp source file ${cairoTempIndexFile} saved!`);
 	});
 
-	var commandPrefix = "";
-	if (settings.useVenv && settings.venvCommand != null && settings.venvCommand.length > 0) {
-		commandPrefix = settings.venvCommand + " && ";
-	}
+	var commandPrefix = getCommandPrefix(settings);
 
 	await exec(commandPrefix + "cd " + tempFolder + " && " + getCompileCommand(settings, textDocumentContents), (error: { message: any; }, stdout: any, stderr: any) => {
 		if (error) {
@@ -480,6 +518,17 @@ async function validateTextDocument(textDocument: TextDocument): Promise<void> {
 		// Send the computed diagnostics to VSCode.
 		connection.sendDiagnostics({ uri: textDocument.uri, diagnostics });
 	}
+}
+
+/**
+ * Gets the command prefix include source command if any.
+ */
+function getCommandPrefix(settings: CairoLSSettings) {
+	var commandPrefix = "";
+	if (settings.useVenv && settings.venvCommand != null && settings.venvCommand.length > 0) {
+		commandPrefix = settings.venvCommand + " && ";
+	}
+	return commandPrefix;
 }
 
 /**
