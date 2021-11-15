@@ -242,12 +242,12 @@ end
 			}
 			for (let i = 3; i<tokens.length; i++) {
 				let moduleName = tokens[1]
-				let functionName = tokens[i];
-				if (functionName.endsWith(',')) {
-					functionName = functionName.substring(0, functionName.length - 1);
+				let importName = tokens[i];
+				if (importName.endsWith(',')) {
+					importName = importName.substring(0, importName.length - 1);
 				}
-				imports.set(functionName, moduleName);
-				connection.console.log(`Added import to map: ${functionName} from ${moduleName}`);
+				imports.set(importName, moduleName);
+				connection.console.log(`Added import to map: ${importName} from ${moduleName}`);
 			}
 		} else if (fromFound) {
 			// end of imports
@@ -276,7 +276,7 @@ end
 
 		connection.console.log(`Imports map size: ${imports.size}`);
 
-		for (const [functionName, moduleName] of imports.entries()) {
+		for (const [importName, moduleName] of imports.entries()) {
 			if (wordWithDot === moduleName) {
 				connection.console.log(`Going to definition for module: ${moduleName}`);
 
@@ -292,8 +292,8 @@ end
 				let link : LocationLink = LocationLink.create(moduleUrl, entireRange, entireRange);
 				links.push(link);
 				break;
-			} else if (word === functionName) {
-				connection.console.log(`Going to definition for function: ${moduleName}`);
+			} else if (word === importName) {
+				connection.console.log(`Going to definition for import: ${moduleName}`);
 
 				let { moduleUrl, modulePath } = getModuleURI(moduleName);
 				if (moduleUrl === undefined || modulePath === undefined) {
@@ -308,18 +308,15 @@ end
 					if (line.length == 0 || line.startsWith("#")) { // ignore whitespace or comments
 						continue;
 					}
-					if (line.startsWith("func") && line.length > 5 && line.charAt(4).match(/\s/)) { // look for functions
-						let functionNameStartIndex = line.indexOf(functionName);
-						let functionNameEndIndex = line.indexOf('{');
-						if (functionNameStartIndex >= 0 && functionNameEndIndex > functionNameStartIndex && line.substring(functionNameStartIndex, functionNameEndIndex).trim() === functionName) {
-							connection.console.log(`Found function: ${line}`);
-							let functionLineRange : Range = {
-								start: { character : 0, line : i },
-								end: { character : 999, line : i }
-							}
-							let link : LocationLink = LocationLink.create(moduleUrl, functionLineRange, functionLineRange);
-							links.push(link);
-						}
+					const FUNC = "func";
+					const isFunction = line.startsWith(FUNC) && line.length > FUNC.length+1 && line.charAt(FUNC.length).match(/\s/);
+					if (isFunction) {
+						pushDefinitionIfFound(line, importName, moduleUrl, "{");
+					}
+					const STRUCT = "struct";
+					const isStruct = line.startsWith(STRUCT) && line.length > STRUCT.length+1 && line.charAt(STRUCT.length).match(/\s/);
+					if (isStruct) {
+						pushDefinitionIfFound(line, importName, moduleUrl, ":");
 					}
 				}
 			}
@@ -347,11 +344,22 @@ end
 				}
 			}
 		}
-
 		return links;
 	}
 
-
+	function pushDefinitionIfFound(line: string, importName: string, moduleUrl: any, endOfNameDelimiter: string) {
+		let importNameStartIndex = line.indexOf(importName);
+		let importNameEndIndex = line.indexOf(endOfNameDelimiter);
+		if (importNameStartIndex >= 0 && importNameEndIndex > importNameStartIndex && line.substring(importNameStartIndex, importNameEndIndex).trim() === importName) {
+			connection.console.log(`Found function or struct: ${line}`);
+			let functionLineRange: Range = {
+				start: { character: 0, line: i },
+				end: { character: 999, line: i }
+			};
+			let link: LocationLink = LocationLink.create(moduleUrl, functionLineRange, functionLineRange);
+			links.push(link);
+		}
+	}
 });
 
 connection.onInitialized(() => {
