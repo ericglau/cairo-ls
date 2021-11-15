@@ -48,7 +48,6 @@ let hasWorkspaceFolderCapability: boolean = false;
 let hasDiagnosticRelatedInformationCapability: boolean = false;
 
 const NAME: string = 'Cairo LS';
-const DEFAULT_PACKAGE_LOCATION = "~/cairo_venv/lib/python3.7/site-packages";
 const DIAGNOSTIC_TYPE_COMPILE_ERROR: string = 'CompileError';
 
 let cairoTempIndexFile: string;
@@ -63,6 +62,8 @@ const os = require('os')
 const path = require('path')
 const uri2path = require('file-uri-to-path');
 const url = require('url');
+
+const defaultPackageLocation = os.homedir() + "/cairo_venv/lib/python3.7/site-packages";
 
 let tempFolder: string;
 
@@ -151,7 +152,7 @@ async function getPythonLibraryLocation(uri: string): Promise<string> {
 	let textDocumentFromURI = documents.get(uri)
 	if (textDocumentFromURI === undefined) {
 		connection.console.log(`Could not read text document for uri ${uri}`);
-		return DEFAULT_PACKAGE_LOCATION;
+		return defaultPackageLocation;
 	}
 	let settings = await getDocumentSettings(textDocumentFromURI.uri);
 
@@ -161,19 +162,18 @@ async function getPythonLibraryLocation(uri: string): Promise<string> {
 		const util = require('util');
 		const exec = util.promisify(require('child_process').exec);
 		const { stdout } = await exec(commandPrefix + "pip show cairo-lang | grep Location");
-		connection.console.log('stdout:' + stdout);
 		const LOCATION_PREFIX = "Location: ";
 		if (stdout.includes(LOCATION_PREFIX)) {
 			const packageLocation = stdout.substring(LOCATION_PREFIX.length).trim();
 			connection.console.log(`Package location: ${packageLocation}`);
 			return packageLocation;
 		} else {
-			connection.console.log(`Could not parse cairo-lang package location from string '${stdout}', defaulting to: ${DEFAULT_PACKAGE_LOCATION}`);
-			return DEFAULT_PACKAGE_LOCATION;
+			connection.console.log(`Could not parse cairo-lang package location from string '${stdout}', defaulting to: ${defaultPackageLocation}`);
+			return defaultPackageLocation;
 		}
 	} catch (e) {
-		connection.console.log(`Could not get cairo-lang package location from Python, defaulting to: ${DEFAULT_PACKAGE_LOCATION}. Error: ${e}`);
-		return DEFAULT_PACKAGE_LOCATION;
+		connection.console.log(`Could not get cairo-lang package location from Python, defaulting to: ${defaultPackageLocation}. Error: ${e}`);
+		return defaultPackageLocation;
 	}
 
 }
