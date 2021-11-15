@@ -1,5 +1,9 @@
 # Change Log
 
+## 0.0.9
+
+Support go to Starkware library definitions for functions and structs.
+
 ## 0.0.8
 
 Initial support for go to definitions.

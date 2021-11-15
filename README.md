@@ -14,7 +14,7 @@ This project implements a Cairo language server and VS Code extension to help wi
 - Auto-detects StarkNet contracts
 - Live diagnostic highlighting for Cairo/StarkNet compile errors without needing to save the file
 - Quick fixes with suggestions provided by Cairo/StarkNet compiler
-- Go to definitions for imported modules and functions, and functions within the same file 
+- Go to definitions for imported modules, functions, and structs 
 - Hover documentation (minimal for now)
 - Snippet insertion for Cairo templates (minimal for now)
 
