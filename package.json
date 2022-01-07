@@ -4,7 +4,7 @@
 	"description": "Cairo language support for VS Code",
 	"author": "Eric Lau",
 	"license": "EPL-2.0",
-	"version": "0.0.9",
+	"version": "0.0.10",
 	"preview": true,
 	"icon": "images/logo.png",
 	"repository": {

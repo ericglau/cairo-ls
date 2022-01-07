@@ -1,5 +1,9 @@
 # Change Log
 
+## 0.0.10
+
+Fixed diagnostic timing issue when making changes quickly.
+
 ## 0.0.9
 
 Support go to Starkware library definitions for functions and structs.

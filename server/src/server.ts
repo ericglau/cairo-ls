@@ -50,8 +50,9 @@ let hasDiagnosticRelatedInformationCapability: boolean = false;
 const NAME: string = 'Cairo LS';
 const DIAGNOSTIC_TYPE_COMPILE_ERROR: string = 'CompileError';
 
-let cairoTempIndexFile: string;
-const CAIRO_TEMP_FILE_NAME = "temp.cairo";
+let nonce: number = 0;
+const CAIRO_TEMP_FILE_PREFIX = "temp";
+const CAIRO_TEMP_FILE_SUFFIX = ".cairo";
 
 const { exec } = require("child_process");
 
@@ -80,7 +81,6 @@ connection.onInitialize((params: InitializeParams) => {
 			throw err;
 		}
 		tempFolder = folder;
-		cairoTempIndexFile = path.join(tempFolder, CAIRO_TEMP_FILE_NAME);
 		connection.console.log("Temp folder: " + tempFolder);
 	});
 
@@ -457,6 +457,21 @@ documents.onDidChangeContent(change => {
 	validateTextDocument(change.document);
 });
 
+interface TempFiles {
+	sourcePath: string;
+	outputName: string;
+	outputPath: string;
+	compileNonce: number;
+}
+
+function getNextTempFiles(): TempFiles {
+	const sourcePath = path.join(tempFolder, CAIRO_TEMP_FILE_PREFIX + nonce + CAIRO_TEMP_FILE_SUFFIX);
+	const outputName = "temp_compiled" + nonce + ".json";
+	const outputPath = path.join(tempFolder, outputName);
+	const compileNonce = nonce++;
+	return { sourcePath, outputName, outputPath, compileNonce };
+}
+
 async function validateTextDocument(textDocument: TextDocument): Promise<void> {
 
 	let textDocumentFromURI = documents.get(textDocument.uri)
@@ -468,18 +483,28 @@ async function validateTextDocument(textDocument: TextDocument): Promise<void> {
 	let diagnostics: Diagnostic[] = [];
 
 	// Compile temp file instead of this current file
-
-	fs.writeFile(cairoTempIndexFile, textDocumentContents, function (err: any) {
+	const tempFiles = getNextTempFiles();
+	fs.writeFile(tempFiles.sourcePath, textDocumentContents, function (err: any) {
 		if (err) {
 			connection.console.error(`Failed to write temp source file: ${err}`);
 			return;
 		}
-		connection.console.log(`Temp source file ${cairoTempIndexFile} saved!`);
+		connection.console.log(`Temp source file ${tempFiles.sourcePath} saved!`);
 	});
 
 	var commandPrefix = getCommandPrefix(settings);
 
-	await exec(commandPrefix + "cd " + tempFolder + " && " + getCompileCommand(settings, textDocumentContents), (error: { message: any; }, stdout: any, stderr: any) => {
+	await exec(commandPrefix + "cd " + tempFolder + " && " + getCompileCommand(settings, tempFiles, textDocumentContents), (error: { message: any; }, stdout: any, stderr: any) => {
+		// delete temp files
+		deleteTempFile(tempFiles.sourcePath);
+		deleteTempFile(tempFiles.outputPath);
+
+		// if the result was from an old nonce, ignore it
+		if (nonce > tempFiles.compileNonce + 1) {
+			connection.console.log('got result from compile nonce ' + tempFiles.compileNonce + ' but current nonce is ' + nonce);
+			return;
+		}
+
 		if (error) {
 			connection.console.log(`Found compile error: ${error.message}`);
 			let errorLocations: ErrorLocation[] = findErrorLocations(error.message);
@@ -493,14 +518,20 @@ async function validateTextDocument(textDocument: TextDocument): Promise<void> {
 					addDiagnostic(element, `${element.errorMessage}`, 'Cairo compilation encountered an error.', DiagnosticSeverity.Error, DIAGNOSTIC_TYPE_COMPILE_ERROR + (element.suggestions != undefined ? element.suggestions : ""));
 				}
 			}
-
-			return;
 		}
 		connection.console.log(`Cairo compiler output: ${stdout}`);
+
+		// Send the computed diagnostics to VSCode.
+		connection.sendDiagnostics({ uri: textDocument.uri, diagnostics });	
 	});
 
-	// Send the computed diagnostics to VSCode (before the above promise finishes, just to clear stuff).
-	connection.sendDiagnostics({ uri: textDocument.uri, diagnostics });
+	function deleteTempFile(path: string) {
+		fs.unlink(path, (e: any) => {
+			if (e) {
+				connection.console.log(`Could not delete temp file ${path}: ${e}`);
+			}
+		});
+	}
 
 	function addDiagnostic(element: ErrorLocation, message: string, details: string, severity: DiagnosticSeverity, code: string | undefined) {
 		let diagnostic: Diagnostic = {
@@ -522,9 +553,6 @@ async function validateTextDocument(textDocument: TextDocument): Promise<void> {
 			];
 		}
 		diagnostics.push(diagnostic);
-
-		// Send the computed diagnostics to VSCode.
-		connection.sendDiagnostics({ uri: textDocument.uri, diagnostics });
 	}
 }
 
@@ -547,13 +575,13 @@ function getCommandPrefix(settings: CairoLSSettings) {
  * @param textDocumentContents The current document contents.
  * @returns The Cairo or StarkNet compile command.
  */
-function getCompileCommand(settings: CairoLSSettings, textDocumentContents?: string): string {
+function getCompileCommand(settings: CairoLSSettings, tempFiles: TempFiles, textDocumentContents?: string): string {
 	let cairoPathParam = "";
 	if (delimitedWorkspaceFolders != null && delimitedWorkspaceFolders.length > 0) {
 		cairoPathParam = "--cairo_path="+delimitedWorkspaceFolders+" ";
 	}
-	const CAIRO_COMPILE_COMMAND = "cairo-compile " + cairoPathParam + CAIRO_TEMP_FILE_NAME + " --output temp_compiled.json";
-	const STARKNET_COMPILE_COMMAND = "starknet-compile " + cairoPathParam + CAIRO_TEMP_FILE_NAME + " --output temp_compiled.json";
+	const CAIRO_COMPILE_COMMAND = "cairo-compile " + cairoPathParam + tempFiles.sourcePath + " --output " + tempFiles.outputName;
+	const STARKNET_COMPILE_COMMAND = "starknet-compile " + cairoPathParam + tempFiles.sourcePath + " --output " + tempFiles.outputName;
 
 	var compiler = settings.highlightingCompiler;
 	if (compiler === "starknet") {
