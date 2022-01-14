@@ -851,7 +851,7 @@ connection.onCompletion(
 			for (const packageString of packages) {
 				connection.console.log(`handling package ${packageString}`);
 
-				completionItems.push(getNewCompletionItem(textDocPositionParams, packageString /* actual import - truncated import prefix */, packageString, 0));
+				completionItems.push(getNewCompletionItem(textDocPositionParams, packageString.substring(truncatedImport.length, packageString.length) /* actual import - truncated import prefix */, packageString, 0));
 			}
 
 		}

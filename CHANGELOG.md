@@ -1,5 +1,9 @@
 # Change Log
 
+## 0.0.11
+
+Initial preview of code completion for imports.
+
 ## 0.0.10
 
 Fixed diagnostic timing issue when making changes quickly.
