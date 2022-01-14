@@ -179,13 +179,7 @@ async function getPythonLibraryLocation(uri: string): Promise<string> {
 }
 
 connection.onDefinition(async (params) => {
-
-	if (packageSearchPaths === undefined) {
-		const packageLocation = await getPythonLibraryLocation(params.textDocument.uri);
-		packageSearchPaths = delimitedWorkspaceFolders + ";" + packageLocation;
-		connection.console.log(`Package search paths: ${packageSearchPaths}`);
-
-	}
+	initPackageSearchPaths(params.textDocument.uri);
 
 	// from contracts.Initializable import initialized, initialize
 
@@ -259,20 +253,7 @@ end
 
 	let position = params.position
 	if (textDocumentFromURI !== undefined) {
-		let start = {
-			line: position.line,
-			character: 0,
-		};
-		let end = {
-			line: position.line + 1,
-			character: 0,
-		};
-		let text = textDocumentFromURI.getText({ start, end });
-		let index = textDocumentFromURI.offsetAt(position) - textDocumentFromURI.offsetAt(start);
-		let wordWithDot = getWord(text, index, true);
-		connection.console.log(`Current word with dot: ${wordWithDot}`);
-		let word = getWord(text, index, false);
-		connection.console.log(`Current word: ${word}`);
+		let { wordWithDot, word } = getWordAtPosition(position, textDocumentFromURI);
 
 		connection.console.log(`Imports map size: ${imports.size}`);
 
@@ -406,6 +387,57 @@ connection.onDidChangeConfiguration(change => {
 	// Revalidate all open text documents
 	documents.all().forEach(validateTextDocument);
 });
+
+
+function getImportAtOrBeforePosition(position: Position, textDocumentFromURI: TextDocument, ) {
+	let start = {
+		line: position.line,
+		character: 0,
+	};
+	let end = 
+		{
+			line: position.line,
+			character: position.character,
+		}
+		
+	let text = textDocumentFromURI.getText({ start, end });
+	let split = text.split(/\s+/);
+	if (split !== undefined && split[0] !== undefined && split[0] === 'from') {
+		let textBeforeCursor = split[split.length - 1];
+		connection.console.log(`found import text: ${textBeforeCursor}`);
+		return textBeforeCursor;
+	} else {
+		connection.console.log(`not an import`);
+
+		return undefined;
+	}
+}
+
+function getWordAtPosition(position: Position, textDocumentFromURI: TextDocument, cutoffAtPosition?: boolean) {
+	let start = {
+		line: position.line,
+		character: 0,
+	};
+	let end = cutoffAtPosition ? 
+		{
+			// right after actual cursor
+			line: position.line,
+			character: position.character + 1,
+		}
+		:
+		{
+			// next line
+			line: position.line + 1,
+			character: 0,
+		};
+	let text = textDocumentFromURI.getText({ start, end });
+	let index = textDocumentFromURI.offsetAt(cutoffAtPosition? end : position) - textDocumentFromURI.offsetAt(start);
+	let wordWithDot = getWord(text, index, true);
+	connection.console.log(`Current word with dot: ${wordWithDot}`);
+	let word = getWord(text, index, false);
+	connection.console.log(`Current word: ${word}`);
+	return { wordWithDot, word };
+}
 
 function getModuleURI(moduleName: string) {
 	let moduleRelativePath = moduleName.split('.').join('/') + ".cairo";
@@ -802,63 +834,119 @@ function getQuickFix(diagnostic: Diagnostic, title: string, range: Range, replac
 
 // This handler provides the initial list of the completion items.
 connection.onCompletion(
-	async (_textDocumentPosition: TextDocumentPositionParams): Promise<CompletionItem[]> => {
+	async (textDocPositionParams: TextDocumentPositionParams): Promise<CompletionItem[]> => {
 		// The passed parameter contains the position of the text document in
 		// which code complete got requested.
 
 		let completionItems: CompletionItem[] = [];
 
-		// TODO parse snippets from a file instead of hardcoding
-		{
-			let sampleSnippet: string =
-				"func main():\n"+
-				"	[ap] = 1000; ap++\n"+
-				"	[ap] = 2000; ap++\n"+
-				"	[ap] = [ap - 2] + [ap - 1]; ap++\n"+
-				"	ret\n"+
-				"end";
-			insertSnippet(_textDocumentPosition, sampleSnippet, completionItems, undefined, "Cairo template", 0);
+		let textDocumentFromURI = documents.get(textDocPositionParams.textDocument.uri)
+		if (textDocumentFromURI != null) {
+			let truncatedImport = getImportAtOrBeforePosition(textDocPositionParams.position, textDocumentFromURI);
+			if (truncatedImport === undefined) {
+				// return empty since it's not an import statement
+				return completionItems;
+			}
+			const packages = await getAllPackagesStartingWith(textDocPositionParams.textDocument.uri, truncatedImport);
+			for (const packageString of packages) {
+				connection.console.log(`handling package ${packageString}`);
 
-			let pythonSnippet: string = 
-				"%[ %]"
-				insertSnippet(_textDocumentPosition, pythonSnippet, completionItems, undefined, "Python literal", 0);
+				completionItems.push(getNewCompletionItem(textDocPositionParams, packageString /* actual import - truncated import prefix */, packageString, 0));
+			}
+
 		}
+
 
 		return completionItems;
 	}
 );
 
-function insertSnippet(_textDocumentPosition: TextDocumentPositionParams, snippetText: string, completionItems: CompletionItem[], imports: string | undefined, label: string, sortOrder: number) {
+function isFolder(dirPath: string) {
+	return fs.existsSync(dirPath) && fs.lstatSync(dirPath).isDirectory();
+}
+
+async function getAllPackagesStartingWith(uri: string, prefix: string) : Promise<string[]> {
+	await initPackageSearchPaths(uri);
+	
+	let packages: string[] = [];
+	
+	// TODO get modules relative to folders in actual CAIRO_PATH as well
+		
+	for (let element of packageSearchPaths.split(';')) {
+
+		const lastDotIndex = prefix.lastIndexOf('.');
+		const parentFolderOfPrefix = prefix.substring(0, lastDotIndex);
+		const parentFolderAsPath = parentFolderOfPrefix.split('.').join('/');
+
+		let possibleImportFolder = path.join(element, parentFolderAsPath);
+		connection.console.log(`Possible import folder: ${possibleImportFolder}`);
+
+		if (!isFolder(possibleImportFolder)) {
+			continue;
+		}
+		fs.readdirSync(possibleImportFolder).forEach((file: any) => {
+			//files?.forEach(file => {
+				const fileFullPath = path.join(possibleImportFolder, file);
+				connection.console.log(`CHECKING ${fileFullPath}`);
+				if (isFolder(fileFullPath)) {
+					connection.console.log(`Adding package path: ${fileFullPath}`);
+					packages.push(convertPathToImport(fileFullPath, element));
+				} else if (fileFullPath.endsWith(".cairo")) {
+					const withoutFileExtension = fileFullPath.substring(0, fileFullPath.lastIndexOf(".cairo"));
+					connection.console.log(`Adding package path for cairo file: ${withoutFileExtension}`);
+					packages.push(convertPathToImport(withoutFileExtension, element));
+				}
+		//	});
+		  });
+
+		// let possibleModulePath = path.join(element, moduleRelativePath);
+		// connection.console.log(`Possible module path: ${possibleModulePath}`);
+
+		// if (fs.existsSync(possibleModulePath)) {
+		// 	connection.console.log(`Module exists: ${possibleModulePath}`);
+		// 	moduleUrl = url.pathToFileURL(possibleModulePath);
+		// 	modulePath = possibleModulePath;
+		// 	connection.console.log(`Module URL: ${moduleUrl}`);
+		// 	break;
+		// }
+	}
+	
+	connection.console.log(`all ${packages.length} packages: ${packages}`);
+
+	return packages;
+}
+
+
+function convertPathToImport(fileFullPath: any, element: string): string {
+	return fileFullPath.substring(element.length + 1).split('/').join('.');
+}
+
+async function initPackageSearchPaths(uri: string) {
+	if (packageSearchPaths === undefined) {
+		const packageLocation = await getPythonLibraryLocation(uri);
+		packageSearchPaths = delimitedWorkspaceFolders + ";" + packageLocation;
+		connection.console.log(`Package search paths: ${packageSearchPaths}`);
+	}
+}
+
+function getNewCompletionItem(_textDocumentPosition: TextDocumentPositionParams, newText: string, label: string, sortOrder: number) {
 	let textEdit: TextEdit = {
 		range: {
 			start: _textDocumentPosition.position,
 			end: _textDocumentPosition.position
 		},
-		newText: snippetText
+		newText: newText
 	};
 	let completionItem: CompletionItem = {
 		label: label,
-		kind: CompletionItemKind.Snippet,
+		kind: CompletionItemKind.Module,
 		data: undefined,
 		textEdit: textEdit,
 		sortText: String(sortOrder)
 	};
-	// check if imports should be added
-	let textDocument = documents.get(_textDocumentPosition.textDocument.uri)
-	let textDocumentContents = textDocument?.getText()
-	if (imports !== undefined && (textDocumentContents === undefined || !String(textDocumentContents).includes(imports))) {
-		let additionalTextEdit = {
-			range: {
-				start: { line: 0, character: 0 },
-				end: { line: 0, character: 0 }
-			},
-			newText: imports
-		};
-		completionItem.additionalTextEdits = [additionalTextEdit]
-	}
-
-	completionItems.push(completionItem);
+	return completionItem;
 }
+
 
 // This handler resolves additional information for the item selected in
 // the completion list.
