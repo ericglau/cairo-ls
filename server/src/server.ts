@@ -879,8 +879,9 @@ async function getAllCairoFilesStartingWith(uri: string, prefix: string) : Promi
 	let result: string[] = [];
 	
 	// TODO get modules relative to folders in actual CAIRO_PATH as well
-		
-	for (let searchPath of packageSearchPaths.split(';')) {
+	let packageSearchPathsArray = packageSearchPaths.split(';');
+
+	for (let searchPath of packageSearchPathsArray) {
 
 		const lastDotIndex = prefix.lastIndexOf('.');
 		const parentFolderOfPrefix = prefix.substring(0, lastDotIndex);
@@ -896,10 +897,12 @@ async function getAllCairoFilesStartingWith(uri: string, prefix: string) : Promi
 			const withoutFileExtension = fileFullPath.substring(0, fileFullPath.lastIndexOf(".cairo"));
 			const relativePathWithoutExt = relativize(withoutFileExtension, searchPath);
 
-			// filter out paths that have "." since those are not proper cairo paths
-			// e.g. "cairo-contracts/env/lib/python3.9/site-packages/starkware/cairo/common/bitwise" is part of a venv, not really a contract path in the current search path
-			if (relativePathWithoutExt.includes('.')) {
-				connection.console.log(`Skipping path since looks like a venv: ${relativePathWithoutExt}`);
+			if (isPartOfAnotherSearchPath(fileFullPath, searchPath, packageSearchPathsArray)) {
+				connection.console.log(`Skipping path since it is part of another search path: ${relativePathWithoutExt}`);
+			} else if (relativePathWithoutExt.includes('.')) {
+				// filter out paths that have "." since those are not proper cairo paths
+				// e.g. "cairo-contracts/env/lib/python3.9/site-packages/starkware/cairo/common/bitwise" is part of a venv, not really a contract path in the current search path
+				connection.console.log(`Skipping path since it's not a valid cairo path in the context of current search path: ${relativePathWithoutExt}`);
 			} else {
 				connection.console.log(`Adding package path for cairo file: ${relativePathWithoutExt}`);
 				result.push(convertPathToImport(relativePathWithoutExt));	
@@ -910,6 +913,16 @@ async function getAllCairoFilesStartingWith(uri: string, prefix: string) : Promi
 	connection.console.log(`Found ${result.length} cairo files:`);
 
 	return result;
+}
+
+function isPartOfAnotherSearchPath(filePath: string, searchPath: string, packageSearchPaths: string[]) {
+	connection.console.log(`${filePath}, ${searchPath}, ${packageSearchPaths}`);
+	for (let otherSearchPath of packageSearchPaths) {
+		if (otherSearchPath !== searchPath && filePath.startsWith(otherSearchPath)) {
+			return true;
+		}
+	}
+	false;
 }
 
 
