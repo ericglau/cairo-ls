@@ -63,6 +63,7 @@ const os = require('os')
 const path = require('path')
 const uri2path = require('file-uri-to-path');
 const url = require('url');
+const glob = require('glob');
 
 const defaultPackageLocation = os.homedir() + "/cairo_venv/lib/python3.7/site-packages";
 
@@ -847,9 +848,10 @@ connection.onCompletion(
 				// return empty since it's not an import statement
 				return completionItems;
 			}
-			const packages = await getAllPackagesStartingWith(textDocPositionParams.textDocument.uri, truncatedImport);
+			const packages = await getAllCairoFilesStartingWith(textDocPositionParams.textDocument.uri, truncatedImport);
+			//const cairoFiles = await getAllCairoFilesFromPackages(packages);
 			for (const packageString of packages) {
-				connection.console.log(`handling package ${packageString}`);
+				//connection.console.log(`handling package ${packageString}`);
 
 				completionItems.push(getNewCompletionItem(textDocPositionParams, packageString.substring(truncatedImport.length, packageString.length) /* actual import - truncated import prefix */, packageString, 0));
 			}
@@ -865,60 +867,118 @@ function isFolder(dirPath: string) {
 	return fs.existsSync(dirPath) && fs.lstatSync(dirPath).isDirectory();
 }
 
-async function getAllPackagesStartingWith(uri: string, prefix: string) : Promise<string[]> {
+/**
+ * Get all packages with given prefix
+ * @param uri uri of the text document
+ * @param prefix package path prefix
+ * @returns string array
+ */
+async function getAllCairoFilesStartingWith(uri: string, prefix: string) : Promise<string[]> {
 	await initPackageSearchPaths(uri);
 	
-	let packages: string[] = [];
+	let result: string[] = [];
 	
 	// TODO get modules relative to folders in actual CAIRO_PATH as well
 		
-	for (let element of packageSearchPaths.split(';')) {
+	for (let searchPath of packageSearchPaths.split(';')) {
 
 		const lastDotIndex = prefix.lastIndexOf('.');
 		const parentFolderOfPrefix = prefix.substring(0, lastDotIndex);
 		const parentFolderAsPath = parentFolderOfPrefix.split('.').join('/');
 
-		let possibleImportFolder = path.join(element, parentFolderAsPath);
+		let possibleImportFolder = path.join(searchPath, parentFolderAsPath);
 		connection.console.log(`Possible import folder: ${possibleImportFolder}`);
 
-		if (!isFolder(possibleImportFolder)) {
-			continue;
+		let cairoFileAbsPaths: string[] = glob.sync(possibleImportFolder + "/**/*.cairo");
+
+		// convert absolute paths to import style paths
+		for (let fileFullPath of cairoFileAbsPaths) {
+			const withoutFileExtension = fileFullPath.substring(0, fileFullPath.lastIndexOf(".cairo"));
+			const relativePathWithoutExt = relativize(withoutFileExtension, searchPath);
+
+			// filter out paths that have "." since those are not proper cairo paths
+			// e.g. "cairo-contracts/env/lib/python3.9/site-packages/starkware/cairo/common/bitwise" is part of a venv, not really a contract path in the current search path
+			if (relativePathWithoutExt.includes('.')) {
+				connection.console.log(`Skipping path since looks like a venv: ${relativePathWithoutExt}`);
+			} else {
+				connection.console.log(`Adding package path for cairo file: ${relativePathWithoutExt}`);
+				result.push(convertPathToImport(relativePathWithoutExt));	
+			}
 		}
-		fs.readdirSync(possibleImportFolder).forEach((file: any) => {
-			//files?.forEach(file => {
-				const fileFullPath = path.join(possibleImportFolder, file);
-				connection.console.log(`CHECKING ${fileFullPath}`);
-				if (isFolder(fileFullPath)) {
-					connection.console.log(`Adding package path: ${fileFullPath}`);
-					packages.push(convertPathToImport(fileFullPath, element));
-				} else if (fileFullPath.endsWith(".cairo")) {
-					const withoutFileExtension = fileFullPath.substring(0, fileFullPath.lastIndexOf(".cairo"));
-					connection.console.log(`Adding package path for cairo file: ${withoutFileExtension}`);
-					packages.push(convertPathToImport(withoutFileExtension, element));
-				}
-		//	});
-		  });
-
-		// let possibleModulePath = path.join(element, moduleRelativePath);
-		// connection.console.log(`Possible module path: ${possibleModulePath}`);
-
-		// if (fs.existsSync(possibleModulePath)) {
-		// 	connection.console.log(`Module exists: ${possibleModulePath}`);
-		// 	moduleUrl = url.pathToFileURL(possibleModulePath);
-		// 	modulePath = possibleModulePath;
-		// 	connection.console.log(`Module URL: ${moduleUrl}`);
-		// 	break;
-		// }
 	}
 	
-	connection.console.log(`all ${packages.length} packages: ${packages}`);
+	connection.console.log(`Found ${result.length} cairo files:`);
 
-	return packages;
+	return result;
 }
 
 
-function convertPathToImport(fileFullPath: any, element: string): string {
-	return fileFullPath.substring(element.length + 1).split('/').join('.');
+// /**
+//  * Get all packages that contain .cairo contracts
+//  * @param uri uri of the text document
+//  * @param prefix package path prefix
+//  * @returns string array
+//  */
+//  async function getAllPackagesStartingWith(uri: string, prefix: string) : Promise<string[]> {
+// 	await initPackageSearchPaths(uri);
+	
+// 	let packages: string[] = [];
+	
+// 	// TODO get modules relative to folders in actual CAIRO_PATH as well
+		
+// 	for (let element of packageSearchPaths.split(';')) {
+
+// 		const lastDotIndex = prefix.lastIndexOf('.');
+// 		const parentFolderOfPrefix = prefix.substring(0, lastDotIndex);
+// 		const parentFolderAsPath = parentFolderOfPrefix.split('.').join('/');
+
+// 		let possibleImportFolder = path.join(element, parentFolderAsPath);
+// 		connection.console.log(`Possible import folder: ${possibleImportFolder}`);
+
+// 		if (!isFolder(possibleImportFolder)) {
+// 			continue;
+// 		}
+// 		fs.readdirSync(possibleImportFolder).forEach((file: any) => {
+// 			//files?.forEach(file => {
+// 				const fileFullPath = path.join(possibleImportFolder, file);
+// 				//connection.console.log(`CHECKING ${fileFullPath}`);
+// 				if (isFolder(fileFullPath)) {
+// 					connection.console.log(`Adding package path: ${fileFullPath}`);
+// 					packages.push(convertPathToImport(fileFullPath, element));
+// 				} else if (fileFullPath.endsWith(".cairo")) {
+// 					const withoutFileExtension = fileFullPath.substring(0, fileFullPath.lastIndexOf(".cairo"));
+// 					connection.console.log(`Adding package path for cairo file: ${withoutFileExtension}`);
+// 					packages.push(convertPathToImport(withoutFileExtension, element));
+// 				}
+// 		//	});
+// 		  });
+
+// 		// let possibleModulePath = path.join(element, moduleRelativePath);
+// 		// connection.console.log(`Possible module path: ${possibleModulePath}`);
+
+// 		// if (fs.existsSync(possibleModulePath)) {
+// 		// 	connection.console.log(`Module exists: ${possibleModulePath}`);
+// 		// 	moduleUrl = url.pathToFileURL(possibleModulePath);
+// 		// 	modulePath = possibleModulePath;
+// 		// 	connection.console.log(`Module URL: ${moduleUrl}`);
+// 		// 	break;
+// 		// }
+// 	}
+	
+// 	connection.console.log(`Found ${packages.length} packages:`);
+// 	for (let p of packages) {
+// 		connection.console.log(`Package: ${p}`);
+// 	}
+
+// 	return packages;
+// }
+
+function relativize(fileFullPath: any, relativeParent: string): string {
+	return fileFullPath.substring(relativeParent.length + 1);
+}
+
+function convertPathToImport(relativePath: any): string {
+	return relativePath.split('/').join('.');
 }
 
 async function initPackageSearchPaths(uri: string) {
