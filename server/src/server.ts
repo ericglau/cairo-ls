@@ -389,6 +389,11 @@ connection.onDidChangeConfiguration(change => {
 	documents.all().forEach(validateTextDocument);
 });
 
+enum ImportType {
+	Module,
+	ImportKeyword,
+	Function
+  }
 
 function getImportAroundPosition(position: Position, textDocumentFromURI: TextDocument, ) {
 	let startOfLine = {
@@ -410,10 +415,24 @@ function getImportAroundPosition(position: Position, textDocumentFromURI: TextDo
 		let textBeforeCursor = lineUpToCursorSplit[lineUpToCursorSplit.length - 1];
 		let textAfterCursor = textDocumentFromURI.getText({ start: cursurPosition, end: nextLine })?.split(/\s+/)[0];
 		connection.console.log(`found import text before cursor: ${textBeforeCursor}, after cursor: ${textAfterCursor}`);
-		return { textBeforeCursor, textAfterCursor };
+		let importType: ImportType;
+		if (lineUpToCursorSplit.length == 2) {
+			// handling the module e.g. "from module"
+			importType = ImportType.Module;
+		} else if (lineUpToCursorSplit.length == 3) {
+			// handling the import keyword e.g. "from module import"
+			importType = ImportType.ImportKeyword;
+		} else if (lineUpToCursorSplit.length == 4) {
+			// handling the imported function e.g. "from module import func"
+			importType = ImportType.Function;
+		} else {
+			// otherwise give uup
+			connection.console.log(`not sure how to help with import`);
+			return undefined;
+		}
+		return { importType, textBeforeCursor, textAfterCursor };
 	} else {
 		connection.console.log(`not an import`);
-
 		return undefined;
 	}
 }
@@ -846,13 +865,69 @@ connection.onCompletion(
 		if (textDocumentFromURI != null) {
 			let importStatement = getImportAroundPosition(textDocPositionParams.position, textDocumentFromURI);
 			if (importStatement === undefined) {
-				// return empty since it's not an import statement
+				// return empty since it's not an import statement that we can help with
 				return completionItems;
 			}
-			const packages = await getAllCairoFilesStartingWith(textDocPositionParams.textDocument.uri, importStatement.textBeforeCursor);
-			for (const packageString of packages) {
-				completionItems.push(getNewCompletionItem(textDocPositionParams, packageString, packageString, 0, importStatement.textBeforeCursor, importStatement.textAfterCursor));
-			}
+			switch(importStatement.importType) { 
+				case ImportType.Module: { 
+					const packages = await getAllCairoFilesStartingWith(textDocPositionParams.textDocument.uri, importStatement.textBeforeCursor);
+					for (const packageString of packages) {
+						completionItems.push(getNewCompletionItem(textDocPositionParams, packageString, packageString, 0, importStatement.textBeforeCursor, importStatement.textAfterCursor));
+					}
+					break; 
+				} 
+				case ImportType.ImportKeyword: { 
+					completionItems.push(getNewCompletionItem(textDocPositionParams, "import", "import", 0, importStatement.textBeforeCursor, importStatement.textAfterCursor));
+					break; 
+				} 
+				case ImportType.Function: { 
+					// TODO get cairo file name 
+					let startOfLine = {
+						line: textDocPositionParams.position.line,
+						character: 0,
+					};
+					let cursurPosition = {
+						line: textDocPositionParams.position.line,
+						character: textDocPositionParams.position.character,
+					};
+					let lineUpToCursor = textDocumentFromURI.getText({ start: startOfLine, end: cursurPosition });
+					let moduleName = lineUpToCursor.split(/\s+/)[1];
+					connection.console.log(`Module: ${moduleName}`);
+
+					let { moduleUrl, modulePath } = getModuleURI(moduleName);
+						
+					// Get function location
+					let moduleContents : string = fs.readFileSync(modulePath, 'utf8');
+					let lines = moduleContents.split('\n');
+					let importItems: string[] = [];
+					for (var i = 0; i < lines.length; i++) {
+						let line: string = lines[i].trim();
+						if (line.length == 0 || line.startsWith("#")) { // ignore whitespace or comments
+							continue;
+						}
+						const FUNC = "func";
+						const isFunction = line.startsWith(FUNC) && line.length > FUNC.length+1 && line.charAt(FUNC.length).match(/\s/);
+						if (isFunction) {
+							importItems.push(line);
+							connection.console.log(`found func ${line}`);
+						}
+						const STRUCT = "struct";
+						const isStruct = line.startsWith(STRUCT) && line.length > STRUCT.length+1 && line.charAt(STRUCT.length).match(/\s/);
+						if (isStruct) {
+							importItems.push(line);
+							connection.console.log(`found struct ${line}`);
+						}					
+					}
+
+
+					//const functions = await getAllFunctionsInCairoFile();
+					completionItems.push(getNewCompletionItem(textDocPositionParams, "func", "func", 0, importStatement.textBeforeCursor, importStatement.textAfterCursor));
+					break; 
+				} 
+				default: { 
+				   break; 
+				} 
+			 } 
 		}
 		return completionItems;
 	}
