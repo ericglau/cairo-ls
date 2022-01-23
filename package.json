@@ -1,6 +1,6 @@
 {
 	"name": "cairo-ls",
-	"displayName": "Language support for Cairo and StarkNet",
+	"displayName": "StarkNet Cairo language support",
 	"description": "Cairo and StarkNet language support for VS Code",
 	"author": "Eric Lau",
 	"license": "EPL-2.0",
@@ -108,22 +108,22 @@
 		"commands": [
 			{
 				"command": "nile.compile",
-				"category": "Language support for Cairo",
+				"category": "StarkNet Cairo language support",
 				"title": "Nile - Compile this contract"
 			},
 			{
 				"command": "nile.compile.all",
-				"category": "Language support for Cairo",
+				"category": "StarkNet Cairo language support",
 				"title": "Nile - Compile all"
 			},
 			{
 				"command": "nile.clean",
-				"category": "Language support for Cairo",
+				"category": "StarkNet Cairo language support",
 				"title": "Nile - Clean"
 			},
 			{
 				"command": "pytest",
-				"category": "Language support for Cairo",
+				"category": "StarkNet Cairo language support",
 				"title": "Run tests with pytest"
 			}
 		]
