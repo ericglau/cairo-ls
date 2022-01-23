@@ -1,5 +1,9 @@
 # Change Log
 
+## 0.0.12
+
+Code completion for module names and function/struct imports.
+
 ## 0.0.11
 
 Initial preview of code completion for imports.
