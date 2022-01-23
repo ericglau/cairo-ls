@@ -390,23 +390,27 @@ connection.onDidChangeConfiguration(change => {
 });
 
 
-function getImportAtOrBeforePosition(position: Position, textDocumentFromURI: TextDocument, ) {
-	let start = {
+function getImportAroundPosition(position: Position, textDocumentFromURI: TextDocument, ) {
+	let startOfLine = {
 		line: position.line,
 		character: 0,
 	};
-	let end = 
-		{
-			line: position.line,
-			character: position.character,
-		}
+	let cursurPosition = {
+		line: position.line,
+		character: position.character,
+	};
+	let nextLine = {
+		line: position.line + 1,
+		character: 0,
+	}
 		
-	let text = textDocumentFromURI.getText({ start, end });
-	let split = text.split(/\s+/);
-	if (split !== undefined && split[0] !== undefined && split[0] === 'from') {
-		let textBeforeCursor = split[split.length - 1];
-		connection.console.log(`found import text: ${textBeforeCursor}`);
-		return textBeforeCursor;
+	let lineUpToCursor = textDocumentFromURI.getText({ start: startOfLine, end: cursurPosition });
+	let lineUpToCursorSplit = lineUpToCursor.split(/\s+/);
+	if (lineUpToCursorSplit !== undefined && lineUpToCursorSplit[0] !== undefined && lineUpToCursorSplit[0] === 'from') {
+		let textBeforeCursor = lineUpToCursorSplit[lineUpToCursorSplit.length - 1];
+		let textAfterCursor = textDocumentFromURI.getText({ start: cursurPosition, end: nextLine })?.split(/\s+/)[0];
+		connection.console.log(`found import text before cursor: ${textBeforeCursor}, after cursor: ${textAfterCursor}`);
+		return { textBeforeCursor, textAfterCursor };
 	} else {
 		connection.console.log(`not an import`);
 
@@ -840,14 +844,14 @@ connection.onCompletion(
 
 		let textDocumentFromURI = documents.get(textDocPositionParams.textDocument.uri)
 		if (textDocumentFromURI != null) {
-			let truncatedImport = getImportAtOrBeforePosition(textDocPositionParams.position, textDocumentFromURI);
-			if (truncatedImport === undefined) {
+			let importStatement = getImportAroundPosition(textDocPositionParams.position, textDocumentFromURI);
+			if (importStatement === undefined) {
 				// return empty since it's not an import statement
 				return completionItems;
 			}
-			const packages = await getAllCairoFilesStartingWith(textDocPositionParams.textDocument.uri, truncatedImport);
+			const packages = await getAllCairoFilesStartingWith(textDocPositionParams.textDocument.uri, importStatement.textBeforeCursor);
 			for (const packageString of packages) {
-				completionItems.push(getNewCompletionItem(textDocPositionParams, packageString.substring(truncatedImport.length, packageString.length) /* actual import - truncated import prefix */, packageString, 0));
+				completionItems.push(getNewCompletionItem(textDocPositionParams, packageString, packageString, 0, importStatement.textBeforeCursor, importStatement.textAfterCursor));
 			}
 		}
 		return completionItems;
@@ -893,7 +897,7 @@ async function getAllCairoFilesStartingWith(uri: string, prefix: string) : Promi
 			} else if (relativePathWithoutExt.includes('.')) {
 				// filter out paths that have "." since those are not proper cairo paths
 				// e.g. "cairo-contracts/env/lib/python3.9/site-packages/starkware/cairo/common/bitwise" is part of a venv, not really a contract path in the current search path
-				connection.console.log(`Skipping path since it's not a valid cairo path in the context of current search path: ${relativePathWithoutExt}`);
+				connection.console.log(`Skipping path since it's not a valid cairo path: ${relativePathWithoutExt}`);
 			} else {
 				connection.console.log(`Adding package path for cairo file: ${relativePathWithoutExt}`);
 				result.push(convertPathToImport(relativePathWithoutExt));	
@@ -908,7 +912,6 @@ async function getAllCairoFilesStartingWith(uri: string, prefix: string) : Promi
 
 function isPartOfAnotherSearchPath(filePath: string, searchPath: string, packageSearchPaths: string[]) {
 	for (let otherSearchPath of packageSearchPaths) {
-		connection.console.log(`${filePath}, ${searchPath}, ${otherSearchPath}`);
 		if (otherSearchPath !== searchPath && filePath.startsWith(otherSearchPath)) {
 			return true;
 		}
@@ -932,11 +935,13 @@ async function initPackageSearchPaths(uri: string) {
 	}
 }
 
-function getNewCompletionItem(_textDocumentPosition: TextDocumentPositionParams, newText: string, label: string, sortOrder: number) {
+function getNewCompletionItem(_textDocumentPosition: TextDocumentPositionParams, newText: string, label: string, sortOrder: number, existingTextBeforeCursor: string, existingTextAfterCursor: string) {
+	let replaceStart: Position = Position.create(_textDocumentPosition.position.line, _textDocumentPosition.position.character - existingTextBeforeCursor.length);
+	let replaceEnd: Position = Position.create(_textDocumentPosition.position.line, _textDocumentPosition.position.character + existingTextAfterCursor.length);
 	let textEdit: TextEdit = {
 		range: {
-			start: _textDocumentPosition.position,
-			end: _textDocumentPosition.position
+			start: replaceStart,
+			end: replaceEnd
 		},
 		newText: newText
 	};
