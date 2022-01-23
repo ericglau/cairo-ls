@@ -223,6 +223,8 @@ end
 	// for each import, populate the map
 	var lines = textDocumentContents.split('\n');
 	var fromFound: boolean = false;
+	let withinImportStatement: boolean = false;
+	let withinImportModule: string | undefined;
 	for (var i = 0; i < lines.length; i++) {
 		var line: string = lines[i].trim();
 		if (line.length == 0 || line.startsWith("#")) { // ignore whitespace or comments
@@ -241,12 +243,36 @@ end
 				if (importName.endsWith(',')) {
 					importName = importName.substring(0, importName.length - 1);
 				}
+				if (importName == '(' || importName.includes('(')) {
+					withinImportStatement = true;
+					withinImportModule = moduleName;
+					// continue to next line to get the imports
+					continue;
+				}
 				imports.set(importName, moduleName);
 				connection.console.log(`Added import to map: ${importName} from ${moduleName}`);
 			}
 		} else if (fromFound) {
-			// end of imports
-			break;
+			if (withinImportStatement && withinImportModule !== undefined) {
+				// within a multiline import brackets section
+				let tokens = line.split(/\s+/); // split by whitespace
+				for (let importName of tokens) {
+					if (importName.endsWith(',')) {
+						importName = importName.substring(0, importName.length - 1);
+					}
+					if (importName !== ')') {
+						imports.set(importName, withinImportModule);
+						connection.console.log(`Added import to map from multiline: ${importName} from ${withinImportModule}`);	
+					}
+					if (line.includes(')')) {
+						withinImportStatement = false;
+					}
+				}
+				continue;
+			} else {
+				// end of imports
+				break;
+			}
 		}
 	}
 
@@ -294,10 +320,16 @@ end
 					const isFunction = line.startsWith(FUNC) && line.length > FUNC.length+1 && line.charAt(FUNC.length).match(/\s/);
 					if (isFunction) {
 						pushDefinitionIfFound(line, importName, moduleUrl, "{");
+						pushDefinitionIfFound(line, importName, moduleUrl, "(");
 					}
 					const STRUCT = "struct";
 					const isStruct = line.startsWith(STRUCT) && line.length > STRUCT.length+1 && line.charAt(STRUCT.length).match(/\s/);
 					if (isStruct) {
+						pushDefinitionIfFound(line, importName, moduleUrl, ":");
+					}
+					const NAMESPACE = "namespace";
+					const isNamespace = line.startsWith(NAMESPACE) && line.length > NAMESPACE.length+1 && line.charAt(NAMESPACE.length).match(/\s/);
+					if (isNamespace) {
 						pushDefinitionIfFound(line, importName, moduleUrl, ":");
 					}
 				}
@@ -911,9 +943,11 @@ connection.onCompletion(
 						}
 						const FUNC = "func";
 						const STRUCT = "struct";
+						const NAMESPACE = "namespace";
 						const isFunction = line.startsWith(FUNC) && line.length > FUNC.length+1 && line.charAt(FUNC.length).match(/\s/);
 						const isStruct = line.startsWith(STRUCT) && line.length > STRUCT.length+1 && line.charAt(STRUCT.length).match(/\s/);
-						if (isFunction || isStruct) {
+						const isNamespace = line.startsWith(NAMESPACE) && line.length > NAMESPACE.length+1 && line.charAt(NAMESPACE.length).match(/\s/);
+						if (isFunction || isStruct || isNamespace) {
 							let importItem = line.split(/[\s{(:]+/)[1];
 							importItems.add(importItem);
 						}				
