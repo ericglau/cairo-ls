@@ -361,15 +361,18 @@ interface CairoLSSettings {
 	maxNumberOfProblems: number;
 	useVenv: boolean;
 	venvCommand: string;
+	nileUseVenv: boolean;
+	nileVenvCommand: string;
 }
 
 const DEFAULT_HIGHLIGHTING_COMPILER = "autodetect";
 const DEFAULT_MAX_PROBLEMS = 100;
 const DEFAULT_USE_VENV = true;
 const DEFAULT_VENV_COMMAND = ". ~/cairo_venv/bin/activate";
+const DEFAULT_NILE_USE_VENV = true;
+const DEFAULT_NILE_VENV_COMMAND = ". env/bin/activate";
 
-
-let defaultSettings: CairoLSSettings = { highlightingCompiler: DEFAULT_HIGHLIGHTING_COMPILER, maxNumberOfProblems: DEFAULT_MAX_PROBLEMS, useVenv: DEFAULT_USE_VENV, venvCommand: DEFAULT_VENV_COMMAND };
+let defaultSettings: CairoLSSettings = { highlightingCompiler: DEFAULT_HIGHLIGHTING_COMPILER, maxNumberOfProblems: DEFAULT_MAX_PROBLEMS, useVenv: DEFAULT_USE_VENV, venvCommand: DEFAULT_VENV_COMMAND, nileUseVenv: DEFAULT_NILE_USE_VENV, nileVenvCommand: DEFAULT_NILE_VENV_COMMAND };
 let globalSettings: CairoLSSettings = defaultSettings;
 
 // Cache the settings of all open documents
@@ -617,7 +620,18 @@ async function validateTextDocument(textDocument: TextDocument): Promise<void> {
  */
 function getCommandPrefix(settings: CairoLSSettings) {
 	var commandPrefix = "";
-	if (settings.useVenv && settings.venvCommand != null && settings.venvCommand.length > 0) {
+	if (settings.nileUseVenv && settings.nileVenvCommand != null && settings.nileVenvCommand.length > 0) {
+		const child_process = require('child_process');
+		try {
+			child_process.execSync(settings.nileVenvCommand);
+			// if it passes, then nile venv exists
+			commandPrefix = settings.nileVenvCommand + " && ";
+		} catch (error) {
+			connection.console.log(`Could not source nile venv. Error: ${error}`);
+		}
+	}
+	// if nile venv not used or not found, look for a cairo venv
+	if (commandPrefix === "" && settings.useVenv && settings.venvCommand != null && settings.venvCommand.length > 0) {
 		commandPrefix = settings.venvCommand + " && ";
 	}
 	return commandPrefix;
@@ -900,7 +914,7 @@ connection.onCompletion(
 						const isFunction = line.startsWith(FUNC) && line.length > FUNC.length+1 && line.charAt(FUNC.length).match(/\s/);
 						const isStruct = line.startsWith(STRUCT) && line.length > STRUCT.length+1 && line.charAt(STRUCT.length).match(/\s/);
 						if (isFunction || isStruct) {
-							let importItem = line.split(/[\s{:]+/)[1];
+							let importItem = line.split(/[\s{(:]+/)[1];
 							importItems.add(importItem);
 						}				
 					}
@@ -967,9 +981,10 @@ async function getAllCairoFilesStartingWith(uri: string, prefix: string) : Promi
 			const withoutFileExtension = fileFullPath.substring(0, fileFullPath.lastIndexOf(".cairo"));
 			const relativePathWithoutExt = relativize(withoutFileExtension, searchPath);
 
-			if (isPartOfAnotherSearchPath(fileFullPath, searchPath, packageSearchPathsArray)) {
-				connection.console.log(`Skipping path since it is part of another search path: ${relativePathWithoutExt}`);
-			} else if (relativePathWithoutExt.includes('.')) {
+			// if (isPartOfAnotherSearchPath(fileFullPath, searchPath, packageSearchPathsArray)) {
+			// 	connection.console.log(`Skipping path since it is part of another search path: ${relativePathWithoutExt}`);
+			// else
+			if (relativePathWithoutExt.includes('.')) {
 				// filter out paths that have "." since those are not proper cairo paths
 				// e.g. "cairo-contracts/env/lib/python3.9/site-packages/starkware/cairo/common/bitwise" is part of a venv, not really a contract path in the current search path
 				connection.console.log(`Skipping path since it's not a valid cairo path: ${relativePathWithoutExt}`);

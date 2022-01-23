@@ -53,13 +53,25 @@
 					"scope": "resource",
 					"type": "boolean",
 					"default": true,
-					"description": "Whether to use a Python virtual environment for running the Cairo/StarkNet compiler."
+					"description": "Whether to use a Python virtual environment for running the Cairo/StarkNet compiler. Note: Nile's venv takes precedence over this option."
 				},
 				"cairols.venvCommand": {
 					"scope": "resource",
 					"type": "string",
 					"default": ". ~/cairo_venv/bin/activate",
-					"description": "If useVenv is true, this is the command used by the extension to source the virtual environment before running Cairo/StarkNet commands."
+					"description": "If useVenv is true, this is the command used by the extension to source the virtual environment before running Cairo/StarkNet commands. Note: Nile's venv takes precedence over this option."
+				},
+				"cairols.nileUseVenv": {
+					"scope": "resource",
+					"type": "boolean",
+					"default": true,
+					"description": "Whether to use a Python virtual environment for running Nile."
+				},
+				"cairols.nileVenvCommand": {
+					"scope": "resource",
+					"type": "string",
+					"default": ". env/bin/activate",
+					"description": "If nileUseVenv is true, this is the command used by the extension to source the virtual environment before running Nile commands."
 				},
 				"cairols.maxNumberOfProblems": {
 					"scope": "resource",
@@ -83,67 +95,42 @@
 		"menus": {
 			"explorer/context": [
 				{
-					"command": "cairo.compile"
+					"command": "nile.compile"
 				},
 				{
-					"command": "cairo.run"
+					"command": "nile.compile.all"
 				},
 				{
-					"command": "cairo.run.layout.small"
-				},
-				{
-					"command": "cairo.compile.starknet"
-				}
-			],
-			"touchBar": [
-				{
-					"command": "cairo.compile"
-				},
-				{
-					"command": "cairo.run"
-				},
-				{
-					"command": "cairo.run.layout.small"
-				},
-				{
-					"command": "cairo.compile.starknet"
+					"command": "pytest"
 				}
 			],
 			"editor/context": [
 				{
-					"command": "cairo.compile"
+					"command": "nile.compile"
 				},
 				{
-					"command": "cairo.run"
+					"command": "nile.compile.all"
 				},
 				{
-					"command": "cairo.run.layout.small"
-				},
-				{
-					"command": "cairo.compile.starknet"
+					"command": "pytest"
 				}
 			]
 		},
 		"commands": [
 			{
-				"command": "cairo.compile",
+				"command": "nile.compile",
 				"category": "Language support for Cairo",
-				"title": "Compile Cairo program"
+				"title": "Nile - Compile"
 			},
 			{
-				"command": "cairo.run",
+				"command": "nile.compile.all",
 				"category": "Language support for Cairo",
-				"title": "Run Cairo program"
+				"title": "Nile - Compile all"
 			},
 			{
-				"command": "cairo.run.layout.small",
+				"command": "pytest",
 				"category": "Language support for Cairo",
-				"title": "Run Cairo program with small layout"
-			},
-			{
-				"command": "cairo.compile.starknet",
-				"category": "Language support for Cairo",
-				"title": "Compile StarkNet contract"
+				"title": "Run tests with pytest"
 			}
 		]
 	},

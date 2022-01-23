@@ -42,9 +42,9 @@ export function activate(context: ExtensionContext) {
 	};
 	
 	terminal = window.createTerminal({ name: "Cairo LS" });
-	const useVenv = workspace.getConfiguration().get('cairols.useVenv') as boolean;
-	const venvCommand = workspace.getConfiguration().get('cairols.venvCommand') as string;
-	registerCommands(context, useVenv, venvCommand);
+	const nileUseVenv = workspace.getConfiguration().get('cairols.nileUseVenv') as boolean;
+	const nileVenvCommand = workspace.getConfiguration().get('cairols.nileVenvCommand') as string;
+	registerCommands(context, nileUseVenv, nileVenvCommand);
 
 	// Options to control the language client
 	let clientOptions: LanguageClientOptions = {
@@ -73,47 +73,35 @@ export function activate(context: ExtensionContext) {
 	client.start();
 }
 
-function registerCommands(context: ExtensionContext, useVenv: boolean, venvCommand: string) {
+function registerCommands(context: ExtensionContext, nileUseVenv: boolean, nileVenvCommand: string) {
 	var commandPrefix = "";
-	if (useVenv && venvCommand != null && venvCommand.length > 0) {
-		commandPrefix = venvCommand + " && ";
+	if (nileUseVenv && nileVenvCommand != null && nileVenvCommand.length > 0) {
+		commandPrefix = nileVenvCommand + " && ";
 	}
 
-	const compileCommand = commands.registerCommand('cairo.compile', () => {
+	const compileCommand = commands.registerCommand('nile.compile', () => {
 		terminal.show();
 		var names = getActiveFileNames();
-		terminal.sendText(commandPrefix + "cairo-compile '" + names.currentOpenFile + "' --output '" + names.outputFile + "'");
+		terminal.sendText(commandPrefix + "nile compile '" + names.currentOpenFile + "'");
 	});
 	context.subscriptions.push(compileCommand);
 
-	const runCommand = commands.registerCommand('cairo.run', () => {
+	const compileAllCommand = commands.registerCommand('nile.compile.all', () => {
 		terminal.show();
-		var names = getActiveFileNames();
-		terminal.sendText(commandPrefix + "cairo-run --program='" + names.outputFile + "' --print_output --print_info --relocate_prints");
+		terminal.sendText(commandPrefix + "nile compile");
+	});
+	context.subscriptions.push(compileAllCommand);
+
+	const runCommand = commands.registerCommand('pytest', () => {
+		terminal.show();
+		terminal.sendText(commandPrefix + "pytest");
 	});
 	context.subscriptions.push(runCommand);
-
-	const runLayoutSmallCommand = commands.registerCommand('cairo.run.layout.small', () => {
-		terminal.show();
-		var names = getActiveFileNames();
-		terminal.sendText(commandPrefix + "cairo-run --program='" + names.outputFile + "' --print_output --print_info --relocate_prints --layout=small");
-	});
-	context.subscriptions.push(runLayoutSmallCommand);
-
-	const compileStarknetCommand = commands.registerCommand('cairo.compile.starknet', () => {
-		terminal.show();
-		var names = getActiveFileNames();
-		terminal.sendText(commandPrefix + "starknet-compile '" + names.currentOpenFile + "' --output '" + names.outputFile + "' --abi '" + names.abiFile + "'");
-	});
-	context.subscriptions.push(compileStarknetCommand);
 }
 
 function getActiveFileNames() {
 	var currentOpenFile = window.activeTextEditor.document.fileName;
-	var fileNameWithoutExtension = currentOpenFile.substring(0, currentOpenFile.lastIndexOf("."));
-	var outputFile = fileNameWithoutExtension + "_compiled.json";
-	var abiFile = fileNameWithoutExtension + "_abi.json";
-	return { currentOpenFile, outputFile, abiFile };
+	return { currentOpenFile };
 }
 
 export function deactivate(): Thenable<void> | undefined {
