@@ -72,23 +72,6 @@
 					"type": "string",
 					"default": ". env/bin/activate",
 					"description": "If nileUseVenv is true, this is the command used by the extension to source the virtual environment before running Nile commands."
-				},
-				"cairols.maxNumberOfProblems": {
-					"scope": "resource",
-					"type": "number",
-					"default": 100,
-					"description": "Controls the maximum number of problems produced by the server."
-				},
-				"cairols.trace.server": {
-					"scope": "window",
-					"type": "string",
-					"enum": [
-						"off",
-						"messages",
-						"verbose"
-					],
-					"default": "off",
-					"description": "Traces the communication between VS Code and the Cairo language server."
 				}
 			}
 		},
@@ -99,6 +82,9 @@
 				},
 				{
 					"command": "nile.compile.all"
+				},
+				{
+					"command": "nile.clean"
 				},
 				{
 					"command": "pytest"
@@ -112,6 +98,9 @@
 					"command": "nile.compile.all"
 				},
 				{
+					"command": "nile.clean"
+				},
+				{
 					"command": "pytest"
 				}
 			]
@@ -120,12 +109,17 @@
 			{
 				"command": "nile.compile",
 				"category": "Language support for Cairo",
-				"title": "Nile - Compile"
+				"title": "Nile - Compile this contract"
 			},
 			{
 				"command": "nile.compile.all",
 				"category": "Language support for Cairo",
 				"title": "Nile - Compile all"
+			},
+			{
+				"command": "nile.clean",
+				"category": "Language support for Cairo",
+				"title": "Nile - Clean"
 			},
 			{
 				"command": "pytest",

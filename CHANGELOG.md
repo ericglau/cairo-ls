@@ -1,5 +1,9 @@
 # Change Log
 
+## 0.0.13
+
+Nile integration.
+
 ## 0.0.12
 
 Code completion for module names and function/struct imports.

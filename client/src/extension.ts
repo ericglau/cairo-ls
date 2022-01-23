@@ -92,6 +92,12 @@ function registerCommands(context: ExtensionContext, nileUseVenv: boolean, nileV
 	});
 	context.subscriptions.push(compileAllCommand);
 
+	const cleanCommand = commands.registerCommand('nile.clean', () => {
+		terminal.show();
+		terminal.sendText(commandPrefix + "nile clean");
+	});
+	context.subscriptions.push(cleanCommand);
+
 	const runCommand = commands.registerCommand('pytest', () => {
 		terminal.show();
 		terminal.sendText(commandPrefix + "pytest");
