@@ -4,7 +4,7 @@
 
 **Note**: This is an early preview release and is still in active development.
 
-![](images/main.gif)
+![](images/codecomplete.gif)
 
 ## Features
 
