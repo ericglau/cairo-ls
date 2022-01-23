@@ -855,7 +855,6 @@ function getQuickFix(diagnostic: Diagnostic, title: string, range: Range, replac
 	return codeAction;
 }
 
-
 // This handler provides the initial list of the completion items.
 connection.onCompletion(
 	async (textDocPositionParams: TextDocumentPositionParams): Promise<CompletionItem[]> => {
@@ -881,47 +880,33 @@ connection.onCompletion(
 					break; 
 				} 
 				case ImportType.Function: { 
-					// TODO get cairo file name 
-					let startOfLine = {
-						line: textDocPositionParams.position.line,
-						character: 0,
-					};
-					let cursurPosition = {
-						line: textDocPositionParams.position.line,
-						character: textDocPositionParams.position.character,
-					};
-					let lineUpToCursor = textDocumentFromURI.getText({ start: startOfLine, end: cursurPosition });
-					let moduleName = lineUpToCursor.split(/\s+/)[1];
-					connection.console.log(`Module: ${moduleName}`);
+					initPackageSearchPaths(textDocPositionParams.textDocument.uri);
 
-					let { moduleUrl, modulePath } = getModuleURI(moduleName);
+					let moduleName = getModuleNameFromImportPosition(textDocPositionParams, textDocumentFromURI);
+
+					let { modulePath } = getModuleURI(moduleName);
 						
 					// Get function location
 					let moduleContents : string = fs.readFileSync(modulePath, 'utf8');
 					let lines = moduleContents.split('\n');
-					let importItems: string[] = [];
+					let importItems: Set<string> = new Set<string>(); // keep a set of unique entries
 					for (var i = 0; i < lines.length; i++) {
 						let line: string = lines[i].trim();
 						if (line.length == 0 || line.startsWith("#")) { // ignore whitespace or comments
 							continue;
 						}
 						const FUNC = "func";
-						const isFunction = line.startsWith(FUNC) && line.length > FUNC.length+1 && line.charAt(FUNC.length).match(/\s/);
-						if (isFunction) {
-							importItems.push(line);
-							connection.console.log(`found func ${line}`);
-						}
 						const STRUCT = "struct";
+						const isFunction = line.startsWith(FUNC) && line.length > FUNC.length+1 && line.charAt(FUNC.length).match(/\s/);
 						const isStruct = line.startsWith(STRUCT) && line.length > STRUCT.length+1 && line.charAt(STRUCT.length).match(/\s/);
-						if (isStruct) {
-							importItems.push(line);
-							connection.console.log(`found struct ${line}`);
-						}					
+						if (isFunction || isStruct) {
+							let importItem = line.split(/[\s{:]+/)[1];
+							importItems.add(importItem);
+						}				
 					}
-
-
-					//const functions = await getAllFunctionsInCairoFile();
-					completionItems.push(getNewCompletionItem(textDocPositionParams, "func", "func", 0, importStatement.textBeforeCursor, importStatement.textAfterCursor));
+					for (let i of importItems) {
+						completionItems.push(getNewCompletionItem(textDocPositionParams, i, i, 0, importStatement.textBeforeCursor, importStatement.textAfterCursor));
+					}
 					break; 
 				} 
 				default: { 
@@ -932,6 +917,21 @@ connection.onCompletion(
 		return completionItems;
 	}
 );
+
+function getModuleNameFromImportPosition(textDocPositionParams: TextDocumentPositionParams, textDocumentFromURI: TextDocument) {
+	let startOfLine = {
+		line: textDocPositionParams.position.line,
+		character: 0,
+	};
+	let cursurPosition = {
+		line: textDocPositionParams.position.line,
+		character: textDocPositionParams.position.character,
+	};
+	let lineUpToCursor = textDocumentFromURI.getText({ start: startOfLine, end: cursurPosition });
+	let moduleName = lineUpToCursor.split(/\s+/)[1];
+	connection.console.log(`Module: ${moduleName}`);
+	return moduleName;
+}
 
 function isFolder(dirPath: string) {
 	return fs.existsSync(dirPath) && fs.lstatSync(dirPath).isDirectory();
