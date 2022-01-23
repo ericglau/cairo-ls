@@ -180,7 +180,7 @@ async function getPythonLibraryLocation(uri: string): Promise<string> {
 }
 
 connection.onDefinition(async (params) => {
-	initPackageSearchPaths(params.textDocument.uri);
+	await initPackageSearchPaths(params.textDocument.uri);
 
 	// from contracts.Initializable import initialized, initialize
 
@@ -880,7 +880,7 @@ connection.onCompletion(
 					break; 
 				} 
 				case ImportType.Function: { 
-					initPackageSearchPaths(textDocPositionParams.textDocument.uri);
+					await initPackageSearchPaths(textDocPositionParams.textDocument.uri);
 
 					let moduleName = getModuleNameFromImportPosition(textDocPositionParams, textDocumentFromURI);
 
