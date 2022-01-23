@@ -1,10 +1,10 @@
 {
 	"name": "cairo-ls",
-	"displayName": "Language support for Cairo",
-	"description": "Cairo language support for VS Code",
+	"displayName": "Language support for Cairo and StarkNet",
+	"description": "Cairo and StarkNet language support for VS Code",
 	"author": "Eric Lau",
 	"license": "EPL-2.0",
-	"version": "0.0.12",
+	"version": "0.0.13",
 	"preview": true,
 	"icon": "images/logo.png",
 	"repository": {
