@@ -63,6 +63,7 @@ const os = require('os')
 const path = require('path')
 const uri2path = require('file-uri-to-path');
 const url = require('url');
+const glob = require('glob');
 
 const defaultPackageLocation = os.homedir() + "/cairo_venv/lib/python3.7/site-packages";
 
@@ -179,7 +180,7 @@ async function getPythonLibraryLocation(uri: string): Promise<string> {
 }
 
 connection.onDefinition(async (params) => {
-	initPackageSearchPaths(params.textDocument.uri);
+	await initPackageSearchPaths(params.textDocument.uri);
 
 	// from contracts.Initializable import initialized, initialize
 
@@ -388,27 +389,50 @@ connection.onDidChangeConfiguration(change => {
 	documents.all().forEach(validateTextDocument);
 });
 
+enum ImportType {
+	Module,
+	ImportKeyword,
+	Function
+  }
 
-function getImportAtOrBeforePosition(position: Position, textDocumentFromURI: TextDocument, ) {
-	let start = {
+function getImportAroundPosition(position: Position, textDocumentFromURI: TextDocument, ) {
+	let startOfLine = {
 		line: position.line,
 		character: 0,
 	};
-	let end = 
-		{
-			line: position.line,
-			character: position.character,
-		}
+	let cursurPosition = {
+		line: position.line,
+		character: position.character,
+	};
+	let nextLine = {
+		line: position.line + 1,
+		character: 0,
+	}
 		
-	let text = textDocumentFromURI.getText({ start, end });
-	let split = text.split(/\s+/);
-	if (split !== undefined && split[0] !== undefined && split[0] === 'from') {
-		let textBeforeCursor = split[split.length - 1];
-		connection.console.log(`found import text: ${textBeforeCursor}`);
-		return textBeforeCursor;
+	let lineUpToCursor = textDocumentFromURI.getText({ start: startOfLine, end: cursurPosition });
+	let lineUpToCursorSplit = lineUpToCursor.split(/\s+/);
+	if (lineUpToCursorSplit !== undefined && lineUpToCursorSplit[0] !== undefined && lineUpToCursorSplit[0] === 'from') {
+		let textBeforeCursor = lineUpToCursorSplit[lineUpToCursorSplit.length - 1];
+		let textAfterCursor = textDocumentFromURI.getText({ start: cursurPosition, end: nextLine })?.split(/\s+/)[0];
+		connection.console.log(`found import text before cursor: ${textBeforeCursor}, after cursor: ${textAfterCursor}`);
+		let importType: ImportType;
+		if (lineUpToCursorSplit.length == 2) {
+			// handling the module e.g. "from module"
+			importType = ImportType.Module;
+		} else if (lineUpToCursorSplit.length == 3) {
+			// handling the import keyword e.g. "from module import"
+			importType = ImportType.ImportKeyword;
+		} else if (lineUpToCursorSplit.length == 4) {
+			// handling the imported function e.g. "from module import func"
+			importType = ImportType.Function;
+		} else {
+			// otherwise give uup
+			connection.console.log(`not sure how to help with import`);
+			return undefined;
+		}
+		return { importType, textBeforeCursor, textAfterCursor };
 	} else {
 		connection.console.log(`not an import`);
-
 		return undefined;
 	}
 }
@@ -831,94 +855,151 @@ function getQuickFix(diagnostic: Diagnostic, title: string, range: Range, replac
 	return codeAction;
 }
 
-
 // This handler provides the initial list of the completion items.
 connection.onCompletion(
 	async (textDocPositionParams: TextDocumentPositionParams): Promise<CompletionItem[]> => {
-		// The passed parameter contains the position of the text document in
-		// which code complete got requested.
-
 		let completionItems: CompletionItem[] = [];
 
 		let textDocumentFromURI = documents.get(textDocPositionParams.textDocument.uri)
 		if (textDocumentFromURI != null) {
-			let truncatedImport = getImportAtOrBeforePosition(textDocPositionParams.position, textDocumentFromURI);
-			if (truncatedImport === undefined) {
-				// return empty since it's not an import statement
+			let importStatement = getImportAroundPosition(textDocPositionParams.position, textDocumentFromURI);
+			if (importStatement === undefined) {
+				// return empty since it's not an import statement that we can help with
 				return completionItems;
 			}
-			const packages = await getAllPackagesStartingWith(textDocPositionParams.textDocument.uri, truncatedImport);
-			for (const packageString of packages) {
-				connection.console.log(`handling package ${packageString}`);
+			switch(importStatement.importType) { 
+				case ImportType.Module: { 
+					const packages = await getAllCairoFilesStartingWith(textDocPositionParams.textDocument.uri, importStatement.textBeforeCursor);
+					for (const packageString of packages) {
+						completionItems.push(getNewCompletionItem(textDocPositionParams, packageString, packageString, 0, importStatement.textBeforeCursor, importStatement.textAfterCursor));
+					}
+					break; 
+				} 
+				case ImportType.ImportKeyword: { 
+					completionItems.push(getNewCompletionItem(textDocPositionParams, "import", "import", 0, importStatement.textBeforeCursor, importStatement.textAfterCursor));
+					break; 
+				} 
+				case ImportType.Function: { 
+					await initPackageSearchPaths(textDocPositionParams.textDocument.uri);
 
-				completionItems.push(getNewCompletionItem(textDocPositionParams, packageString.substring(truncatedImport.length, packageString.length) /* actual import - truncated import prefix */, packageString, 0));
-			}
+					let moduleName = getModuleNameFromImportPosition(textDocPositionParams, textDocumentFromURI);
 
+					let { modulePath } = getModuleURI(moduleName);
+						
+					// Get function location
+					let moduleContents : string = fs.readFileSync(modulePath, 'utf8');
+					let lines = moduleContents.split('\n');
+					let importItems: Set<string> = new Set<string>(); // keep a set of unique entries
+					for (var i = 0; i < lines.length; i++) {
+						let line: string = lines[i].trim();
+						if (line.length == 0 || line.startsWith("#")) { // ignore whitespace or comments
+							continue;
+						}
+						const FUNC = "func";
+						const STRUCT = "struct";
+						const isFunction = line.startsWith(FUNC) && line.length > FUNC.length+1 && line.charAt(FUNC.length).match(/\s/);
+						const isStruct = line.startsWith(STRUCT) && line.length > STRUCT.length+1 && line.charAt(STRUCT.length).match(/\s/);
+						if (isFunction || isStruct) {
+							let importItem = line.split(/[\s{:]+/)[1];
+							importItems.add(importItem);
+						}				
+					}
+					for (let i of importItems) {
+						completionItems.push(getNewCompletionItem(textDocPositionParams, i, i, 0, importStatement.textBeforeCursor, importStatement.textAfterCursor));
+					}
+					break; 
+				} 
+				default: { 
+				   break; 
+				} 
+			 } 
 		}
-
-
 		return completionItems;
 	}
 );
+
+function getModuleNameFromImportPosition(textDocPositionParams: TextDocumentPositionParams, textDocumentFromURI: TextDocument) {
+	let startOfLine = {
+		line: textDocPositionParams.position.line,
+		character: 0,
+	};
+	let cursurPosition = {
+		line: textDocPositionParams.position.line,
+		character: textDocPositionParams.position.character,
+	};
+	let lineUpToCursor = textDocumentFromURI.getText({ start: startOfLine, end: cursurPosition });
+	let moduleName = lineUpToCursor.split(/\s+/)[1];
+	connection.console.log(`Module: ${moduleName}`);
+	return moduleName;
+}
 
 function isFolder(dirPath: string) {
 	return fs.existsSync(dirPath) && fs.lstatSync(dirPath).isDirectory();
 }
 
-async function getAllPackagesStartingWith(uri: string, prefix: string) : Promise<string[]> {
+/**
+ * Get all packages with given prefix
+ * @param uri uri of the text document
+ * @param prefix package path prefix
+ * @returns string array
+ */
+async function getAllCairoFilesStartingWith(uri: string, prefix: string) : Promise<string[]> {
 	await initPackageSearchPaths(uri);
 	
-	let packages: string[] = [];
+	let result: string[] = [];
 	
 	// TODO get modules relative to folders in actual CAIRO_PATH as well
-		
-	for (let element of packageSearchPaths.split(';')) {
+	let packageSearchPathsArray = packageSearchPaths.split(';');
+
+	for (let searchPath of packageSearchPathsArray) {
 
 		const lastDotIndex = prefix.lastIndexOf('.');
 		const parentFolderOfPrefix = prefix.substring(0, lastDotIndex);
 		const parentFolderAsPath = parentFolderOfPrefix.split('.').join('/');
 
-		let possibleImportFolder = path.join(element, parentFolderAsPath);
+		let possibleImportFolder = path.join(searchPath, parentFolderAsPath);
 		connection.console.log(`Possible import folder: ${possibleImportFolder}`);
 
-		if (!isFolder(possibleImportFolder)) {
-			continue;
+		let cairoFileAbsPaths: string[] = glob.sync(possibleImportFolder + "/**/*.cairo");
+
+		// convert absolute paths to import style paths
+		for (let fileFullPath of cairoFileAbsPaths) {
+			const withoutFileExtension = fileFullPath.substring(0, fileFullPath.lastIndexOf(".cairo"));
+			const relativePathWithoutExt = relativize(withoutFileExtension, searchPath);
+
+			if (isPartOfAnotherSearchPath(fileFullPath, searchPath, packageSearchPathsArray)) {
+				connection.console.log(`Skipping path since it is part of another search path: ${relativePathWithoutExt}`);
+			} else if (relativePathWithoutExt.includes('.')) {
+				// filter out paths that have "." since those are not proper cairo paths
+				// e.g. "cairo-contracts/env/lib/python3.9/site-packages/starkware/cairo/common/bitwise" is part of a venv, not really a contract path in the current search path
+				connection.console.log(`Skipping path since it's not a valid cairo path: ${relativePathWithoutExt}`);
+			} else {
+				connection.console.log(`Adding package path for cairo file: ${relativePathWithoutExt}`);
+				result.push(convertPathToImport(relativePathWithoutExt));	
+			}
 		}
-		fs.readdirSync(possibleImportFolder).forEach((file: any) => {
-			//files?.forEach(file => {
-				const fileFullPath = path.join(possibleImportFolder, file);
-				connection.console.log(`CHECKING ${fileFullPath}`);
-				if (isFolder(fileFullPath)) {
-					connection.console.log(`Adding package path: ${fileFullPath}`);
-					packages.push(convertPathToImport(fileFullPath, element));
-				} else if (fileFullPath.endsWith(".cairo")) {
-					const withoutFileExtension = fileFullPath.substring(0, fileFullPath.lastIndexOf(".cairo"));
-					connection.console.log(`Adding package path for cairo file: ${withoutFileExtension}`);
-					packages.push(convertPathToImport(withoutFileExtension, element));
-				}
-		//	});
-		  });
-
-		// let possibleModulePath = path.join(element, moduleRelativePath);
-		// connection.console.log(`Possible module path: ${possibleModulePath}`);
-
-		// if (fs.existsSync(possibleModulePath)) {
-		// 	connection.console.log(`Module exists: ${possibleModulePath}`);
-		// 	moduleUrl = url.pathToFileURL(possibleModulePath);
-		// 	modulePath = possibleModulePath;
-		// 	connection.console.log(`Module URL: ${moduleUrl}`);
-		// 	break;
-		// }
 	}
 	
-	connection.console.log(`all ${packages.length} packages: ${packages}`);
+	connection.console.log(`Found ${result.length} cairo files:`);
 
-	return packages;
+	return result;
 }
 
+function isPartOfAnotherSearchPath(filePath: string, searchPath: string, packageSearchPaths: string[]) {
+	for (let otherSearchPath of packageSearchPaths) {
+		if (otherSearchPath !== searchPath && filePath.startsWith(otherSearchPath)) {
+			return true;
+		}
+	}
+	false;
+}
 
-function convertPathToImport(fileFullPath: any, element: string): string {
-	return fileFullPath.substring(element.length + 1).split('/').join('.');
+function relativize(fileFullPath: any, relativeParent: string): string {
+	return fileFullPath.substring(relativeParent.length + 1);
+}
+
+function convertPathToImport(relativePath: any): string {
+	return relativePath.split('/').join('.');
 }
 
 async function initPackageSearchPaths(uri: string) {
@@ -929,11 +1010,13 @@ async function initPackageSearchPaths(uri: string) {
 	}
 }
 
-function getNewCompletionItem(_textDocumentPosition: TextDocumentPositionParams, newText: string, label: string, sortOrder: number) {
+function getNewCompletionItem(_textDocumentPosition: TextDocumentPositionParams, newText: string, label: string, sortOrder: number, existingTextBeforeCursor: string, existingTextAfterCursor: string) {
+	let replaceStart: Position = Position.create(_textDocumentPosition.position.line, _textDocumentPosition.position.character - existingTextBeforeCursor.length);
+	let replaceEnd: Position = Position.create(_textDocumentPosition.position.line, _textDocumentPosition.position.character + existingTextAfterCursor.length);
 	let textEdit: TextEdit = {
 		range: {
-			start: _textDocumentPosition.position,
-			end: _textDocumentPosition.position
+			start: replaceStart,
+			end: replaceEnd
 		},
 		newText: newText
 	};
