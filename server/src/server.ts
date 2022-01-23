@@ -836,9 +836,6 @@ function getQuickFix(diagnostic: Diagnostic, title: string, range: Range, replac
 // This handler provides the initial list of the completion items.
 connection.onCompletion(
 	async (textDocPositionParams: TextDocumentPositionParams): Promise<CompletionItem[]> => {
-		// The passed parameter contains the position of the text document in
-		// which code complete got requested.
-
 		let completionItems: CompletionItem[] = [];
 
 		let textDocumentFromURI = documents.get(textDocPositionParams.textDocument.uri)
@@ -849,16 +846,10 @@ connection.onCompletion(
 				return completionItems;
 			}
 			const packages = await getAllCairoFilesStartingWith(textDocPositionParams.textDocument.uri, truncatedImport);
-			//const cairoFiles = await getAllCairoFilesFromPackages(packages);
 			for (const packageString of packages) {
-				//connection.console.log(`handling package ${packageString}`);
-
 				completionItems.push(getNewCompletionItem(textDocPositionParams, packageString.substring(truncatedImport.length, packageString.length) /* actual import - truncated import prefix */, packageString, 0));
 			}
-
 		}
-
-
 		return completionItems;
 	}
 );
@@ -916,75 +907,14 @@ async function getAllCairoFilesStartingWith(uri: string, prefix: string) : Promi
 }
 
 function isPartOfAnotherSearchPath(filePath: string, searchPath: string, packageSearchPaths: string[]) {
-	connection.console.log(`${filePath}, ${searchPath}, ${packageSearchPaths}`);
 	for (let otherSearchPath of packageSearchPaths) {
+		connection.console.log(`${filePath}, ${searchPath}, ${otherSearchPath}`);
 		if (otherSearchPath !== searchPath && filePath.startsWith(otherSearchPath)) {
 			return true;
 		}
 	}
 	false;
 }
-
-
-// /**
-//  * Get all packages that contain .cairo contracts
-//  * @param uri uri of the text document
-//  * @param prefix package path prefix
-//  * @returns string array
-//  */
-//  async function getAllPackagesStartingWith(uri: string, prefix: string) : Promise<string[]> {
-// 	await initPackageSearchPaths(uri);
-	
-// 	let packages: string[] = [];
-	
-// 	// TODO get modules relative to folders in actual CAIRO_PATH as well
-		
-// 	for (let element of packageSearchPaths.split(';')) {
-
-// 		const lastDotIndex = prefix.lastIndexOf('.');
-// 		const parentFolderOfPrefix = prefix.substring(0, lastDotIndex);
-// 		const parentFolderAsPath = parentFolderOfPrefix.split('.').join('/');
-
-// 		let possibleImportFolder = path.join(element, parentFolderAsPath);
-// 		connection.console.log(`Possible import folder: ${possibleImportFolder}`);
-
-// 		if (!isFolder(possibleImportFolder)) {
-// 			continue;
-// 		}
-// 		fs.readdirSync(possibleImportFolder).forEach((file: any) => {
-// 			//files?.forEach(file => {
-// 				const fileFullPath = path.join(possibleImportFolder, file);
-// 				//connection.console.log(`CHECKING ${fileFullPath}`);
-// 				if (isFolder(fileFullPath)) {
-// 					connection.console.log(`Adding package path: ${fileFullPath}`);
-// 					packages.push(convertPathToImport(fileFullPath, element));
-// 				} else if (fileFullPath.endsWith(".cairo")) {
-// 					const withoutFileExtension = fileFullPath.substring(0, fileFullPath.lastIndexOf(".cairo"));
-// 					connection.console.log(`Adding package path for cairo file: ${withoutFileExtension}`);
-// 					packages.push(convertPathToImport(withoutFileExtension, element));
-// 				}
-// 		//	});
-// 		  });
-
-// 		// let possibleModulePath = path.join(element, moduleRelativePath);
-// 		// connection.console.log(`Possible module path: ${possibleModulePath}`);
-
-// 		// if (fs.existsSync(possibleModulePath)) {
-// 		// 	connection.console.log(`Module exists: ${possibleModulePath}`);
-// 		// 	moduleUrl = url.pathToFileURL(possibleModulePath);
-// 		// 	modulePath = possibleModulePath;
-// 		// 	connection.console.log(`Module URL: ${moduleUrl}`);
-// 		// 	break;
-// 		// }
-// 	}
-	
-// 	connection.console.log(`Found ${packages.length} packages:`);
-// 	for (let p of packages) {
-// 		connection.console.log(`Package: ${p}`);
-// 	}
-
-// 	return packages;
-// }
 
 function relativize(fileFullPath: any, relativeParent: string): string {
 	return fileFullPath.substring(relativeParent.length + 1);
