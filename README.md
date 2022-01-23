@@ -15,8 +15,8 @@ This project implements a Cairo language server and VS Code extension to help wi
 - Live diagnostic highlighting for Cairo/StarkNet compile errors without needing to save the file
 - Quick fixes with suggestions provided by Cairo/StarkNet compiler
 - Go to definitions for imported modules, functions, and structs 
+- Code completion for imports
 - Hover documentation (minimal for now)
-- Snippet insertion for Cairo templates (minimal for now)
 
 Right-click menu commands to interact with Cairo:
 - Compile Cairo program
