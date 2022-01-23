@@ -1,5 +1,9 @@
 # Change Log
 
+## 0.0.14
+
+Fixes for code completion.
+
 ## 0.0.13
 
 Nile integration.

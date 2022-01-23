@@ -981,13 +981,14 @@ async function getAllCairoFilesStartingWith(uri: string, prefix: string) : Promi
 			const withoutFileExtension = fileFullPath.substring(0, fileFullPath.lastIndexOf(".cairo"));
 			const relativePathWithoutExt = relativize(withoutFileExtension, searchPath);
 
-			// if (isPartOfAnotherSearchPath(fileFullPath, searchPath, packageSearchPathsArray)) {
-			// 	connection.console.log(`Skipping path since it is part of another search path: ${relativePathWithoutExt}`);
-			// else
-			if (relativePathWithoutExt.includes('.')) {
+			if (isPartOfAnotherSearchPath(fileFullPath, searchPath, packageSearchPathsArray)) {
+			 	connection.console.log(`Skipping path since it is part of another search path: ${relativePathWithoutExt}`);
+			} else if (relativePathWithoutExt.includes('.')) {
 				// filter out paths that have "." since those are not proper cairo paths
 				// e.g. "cairo-contracts/env/lib/python3.9/site-packages/starkware/cairo/common/bitwise" is part of a venv, not really a contract path in the current search path
 				connection.console.log(`Skipping path since it's not a valid cairo path: ${relativePathWithoutExt}`);
+			} else if (fileFullPath.includes('site-packages/nile/base_project')) {
+				connection.console.log(`Skipping nile base project: ${relativePathWithoutExt}`);
 			} else {
 				connection.console.log(`Adding package path for cairo file: ${relativePathWithoutExt}`);
 				result.push(convertPathToImport(relativePathWithoutExt));	
@@ -1002,7 +1003,7 @@ async function getAllCairoFilesStartingWith(uri: string, prefix: string) : Promi
 
 function isPartOfAnotherSearchPath(filePath: string, searchPath: string, packageSearchPaths: string[]) {
 	for (let otherSearchPath of packageSearchPaths) {
-		if (otherSearchPath !== searchPath && filePath.startsWith(otherSearchPath)) {
+		if (otherSearchPath !== searchPath && otherSearchPath.startsWith(searchPath) && filePath.startsWith(otherSearchPath)) {
 			return true;
 		}
 	}
