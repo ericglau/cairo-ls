@@ -1,6 +1,6 @@
-# StarkNet Cairo language support
+# Cairo language support for StarkNet
 
-[Cairo](https://www.cairo-lang.org/) language server and VS Code extension to help with writing Cairo contracts for StarkNet.
+[Cairo](https://www.cairo-lang.org/) language server and VS Code extension to help with writing Cairo smart contracts for StarkNet.
 
 **Note**: This is an early preview release and is still in active development.
 
