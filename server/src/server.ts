@@ -457,7 +457,7 @@ function getImportAroundPosition(position: Position, textDocumentFromURI: TextDo
 		} else if (lineUpToCursorSplit.length == 3) {
 			// handling the import keyword e.g. "from module import"
 			importType = ImportType.ImportKeyword;
-		} else if (lineUpToCursorSplit.length == 4) {
+		} else if (lineUpToCursorSplit.length >= 4) {
 			// handling the imported function e.g. "from module import func"
 			importType = ImportType.Function;
 		} else {
