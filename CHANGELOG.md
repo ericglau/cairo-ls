@@ -1,5 +1,9 @@
 # Change Log
 
+## 0.0.15
+
+Improve handling of multiline imports.
+
 ## 0.0.14
 
 Fixes for code completion.
