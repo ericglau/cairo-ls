@@ -1,5 +1,5 @@
 {
-	"name": "cairo-ls",
+	"name": "cairo-ls-vscode",
 	"displayName": "Cairo language support for StarkNet",
 	"description": "Cairo language support for StarkNet contracts in VS Code",
 	"author": "Eric Lau",

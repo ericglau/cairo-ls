@@ -1,5 +1,5 @@
 {
-	"name": "cairo-lsp-server",
+	"name": "cairo-ls",
 	"description": "Cairo Language Server",
 	"version": "0.0.1",
 	"author": "Eric Lau",
