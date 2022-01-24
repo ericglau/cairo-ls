@@ -4,7 +4,7 @@
 	"description": "Cairo language support for StarkNet contracts in VS Code",
 	"author": "Eric Lau",
 	"license": "EPL-2.0",
-	"version": "0.0.18",
+	"version": "0.0.19",
 	"preview": true,
 	"icon": "images/logo.png",
 	"repository": {
@@ -19,7 +19,7 @@
 	],
 	"keywords": [
 		"cairo",
-		"ethereum",
+		"starknet",
 		"blockchain"
 	],
 	"engines": {

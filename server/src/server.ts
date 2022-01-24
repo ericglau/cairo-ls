@@ -522,7 +522,7 @@ function getModuleURI(moduleName: string) {
 	return { moduleUrl, modulePath };
 }
 
-function getDocumentSettings(resource: string): Thenable<CairoLSSettings> {
+async function getDocumentSettings(resource: string): Promise<CairoLSSettings> {
 	if (!hasConfigurationCapability) {
 		return Promise.resolve(globalSettings);
 	}
@@ -533,6 +533,10 @@ function getDocumentSettings(resource: string): Thenable<CairoLSSettings> {
 			section: 'cairols'
 		});
 		documentSettings.set(resource, result);
+	}
+	const awaited = await result;
+	if (awaited == null) {
+		return Promise.resolve(globalSettings);
 	}
 	return result;
 }
