@@ -6,10 +6,6 @@ Works with any IDE or text editor that supports the [Language Server Protocol](h
 
 **Note**: This is an early preview release and is still in active development.
 
-https://www.npmjs.com/package/cairo-ls
-
-![](images/codecomplete.gif)
-
 ## Features
 
 - Compiler support for .cairo files
