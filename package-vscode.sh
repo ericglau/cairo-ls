@@ -1,0 +1,1 @@
+mv README.md LSP.md && mv VSCODE.md README.md && vsce package && mv README.md VSCODE.md && mv LSP.md README.md
