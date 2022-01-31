@@ -34,7 +34,7 @@ https://www.npmjs.com/package/cairo-ls
 ```
 npm install cairo-ls
 ```
-2. Configure a language client for your IDE to launch the language server with the following command (replace `YOUR_DIRECTORY` with your directory from step 1):
+2. Configure a language client for your IDE to launch the language server with the following command (replace `YOUR_DIRECTORY` with the directory where you ran the command in step 1):
 ```
 node YOUR_DIRECTORY/cairo-ls/node_modules/cairo-ls/out/server.js --stdio
 ```
