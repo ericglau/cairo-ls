@@ -1,13 +1,12 @@
 {
-	"name": "cairo-ls-vscode",
+	"name": "cairo-ls",
 	"displayName": "Cairo language support for StarkNet",
-	"description": "Cairo language support for StarkNet smart contracts in VS Code",
+	"description": "Cairo language support for StarkNet in VS Code",
 	"author": "Eric Lau",
 	"license": "EPL-2.0",
-	"version": "0.0.20",
+	"version": "0.0.19",
 	"preview": true,
 	"icon": "images/logo.png",
-	"homepage": "https://github.com/ericglau/cairo-ls/blob/main/VSCODE.md",
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/ericglau/cairo-ls"
