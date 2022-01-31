@@ -38,3 +38,5 @@ npm install cairo-ls
 ```
 node YOUR_DIRECTORY/cairo-ls/node_modules/cairo-ls/out/server.js --stdio
 ```
+3. Install Nile by following its [Getting started](https://github.com/OpenZeppelin/nile#getting-started) steps, or follow the [Cairo environment setup steps](https://www.cairo-lang.org/docs/quickstart.html).
+4. Open a .cairo file in your IDE or text editor.
