@@ -1,7 +1,7 @@
 {
 	"name": "cairo-ls",
 	"description": "Cairo Language Server",
-	"version": "0.0.2",
+	"version": "0.0.3",
 	"author": "Eric Lau",
 	"license": "EPL-2.0",
 	"engines": {
