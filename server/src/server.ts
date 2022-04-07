@@ -668,7 +668,7 @@ function getCommandPrefix(settings: CairoLSSettings) {
 	return commandPrefix;
 }
 
-function appendSourceDir(basePath: string, sourceDir: string) {
+function appendSourceDir(basePath: string, sourceDir?: string) {
 	if (sourceDir !== undefined && sourceDir.length > 0) {
 		return basePath + '/' + sourceDir;
 	} else {
@@ -687,7 +687,7 @@ function appendSourceDir(basePath: string, sourceDir: string) {
 function getCompileCommand(settings: CairoLSSettings, tempFiles: TempFiles, textDocumentContents?: string): string {
 	let cairoPathParam = "";
 
-	const sourceDir = 'src';
+	const sourceDir = settings.sourceDir;
 
 	if (workspaceFolders.length > 0) {
 		cairoPathParam = '--cairo_path=';
@@ -1073,7 +1073,8 @@ async function initPackageSearchPaths(uri: string) {
 	if (packageSearchPaths === undefined) {
 		const packageLocation = await getPythonLibraryLocation(uri);
 
-		const sourceDir = 'src';
+		const settings = await getDocumentSettings(uri);
+		const sourceDir = settings.sourceDir;
 
 		packageSearchPaths = '';
 		for (let i = 0; i < workspaceFolders.length; i++) {
