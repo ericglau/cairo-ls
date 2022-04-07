@@ -49,6 +49,11 @@
 					"default": "autodetect",
 					"description": "Specifies which compiler to use for diagnostic highlighting."
 				},
+				"cairols.sourceDir": {
+					"scope": "resource",
+					"type": "string",
+					"description": "The contracts source directory within your project, for example: src"
+				},
 				"cairols.useVenv": {
 					"scope": "resource",
 					"type": "boolean",
