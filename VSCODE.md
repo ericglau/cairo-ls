@@ -28,3 +28,4 @@ Right-click menu commands using [Nile](https://github.com/OpenZeppelin/nile):
 3. If using a virtual environment, start VS Code from within that terminal according to the instructions [here](https://www.cairo-lang.org/docs/quickstart.html#visual-studio-code-setup).
 4. Install this extension along with [StarkWare's Cairo extension (.vsix file)](https://github.com/starkware-libs/cairo-lang/releases).
 5. Open a .cairo file and start editing.
+5. If your project's contracts directory is in a subfolder such as `src`, set the folder name using the `sourceDir` setting in your VS Code settings under the Cairo LS section.

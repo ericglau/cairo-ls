@@ -1,5 +1,9 @@
 # Change Log
 
+## 0.0.20
+
+Support `sourceDir` setting for contracts source directory.
+
 ## 0.0.16
 
 Code completion for multiple imports per line.
