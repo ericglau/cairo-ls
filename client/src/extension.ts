@@ -42,9 +42,10 @@ export function activate(context: ExtensionContext) {
 	};
 	
 	terminal = window.createTerminal({ name: "Cairo LS" });
+	const sourceDir = workspace.getConfiguration().get('cairols.sourceDir') as string | undefined;
 	const nileUseVenv = workspace.getConfiguration().get('cairols.nileUseVenv') as boolean;
 	const nileVenvCommand = workspace.getConfiguration().get('cairols.nileVenvCommand') as string;
-	registerCommands(context, nileUseVenv, nileVenvCommand);
+	registerCommands(context, sourceDir, nileUseVenv, nileVenvCommand);
 
 	// Options to control the language client
 	let clientOptions: LanguageClientOptions = {
@@ -73,22 +74,24 @@ export function activate(context: ExtensionContext) {
 	client.start();
 }
 
-function registerCommands(context: ExtensionContext, nileUseVenv: boolean, nileVenvCommand: string) {
+function registerCommands(context: ExtensionContext, sourceDir: string | undefined, nileUseVenv: boolean, nileVenvCommand: string) {
 	var commandPrefix = "";
 	if (nileUseVenv && nileVenvCommand != null && nileVenvCommand.length > 0) {
 		commandPrefix = nileVenvCommand + " && ";
 	}
 
+	const sourceDirParam = sourceDir ? `--directory '${sourceDir}' ` : ``;
+
 	const compileCommand = commands.registerCommand('nile.compile', () => {
 		terminal.show();
 		var names = getActiveFileNames();
-		terminal.sendText(commandPrefix + "nile compile '" + names.currentOpenFile + "'");
+		terminal.sendText(commandPrefix + "nile compile " + sourceDirParam + "'" + names.currentOpenFile + "'");
 	});
 	context.subscriptions.push(compileCommand);
 
 	const compileAllCommand = commands.registerCommand('nile.compile.all', () => {
 		terminal.show();
-		terminal.sendText(commandPrefix + "nile compile");
+		terminal.sendText(commandPrefix + "nile compile " + sourceDirParam);
 	});
 	context.subscriptions.push(compileAllCommand);
 
