@@ -69,8 +69,7 @@ const defaultPackageLocation = os.homedir() + "/cairo_venv/lib/python3.7/site-pa
 
 let tempFolder: string;
 
-/** Semicolon delimited workspace folders for use as local Cairo path */
-let delimitedWorkspaceFolders: string;
+let workspaceFolders: string[] = [];
 
 let packageSearchPaths: string;
 
@@ -103,18 +102,13 @@ connection.onInitialize((params: InitializeParams) => {
 
 	if (hasWorkspaceFolderCapability && params.workspaceFolders != null) {
 		params.workspaceFolders.forEach(folder => {
-			if (delimitedWorkspaceFolders == null) {
-				delimitedWorkspaceFolders = uri2path(folder.uri);
-			} else {
-				delimitedWorkspaceFolders += ":" + uri2path(folder.uri);
-			}
+			workspaceFolders.push(uri2path(folder.uri));
 		});
-		connection.console.log(`Workspace folders: ${delimitedWorkspaceFolders}`);
+		connection.console.log(`Workspace folders: ${workspaceFolders}`);
 	}
 
-	if (delimitedWorkspaceFolders == null && params.rootUri != null) {
-		delimitedWorkspaceFolders = uri2path(params.rootUri);
-		connection.console.log(`Workspace folder: ${delimitedWorkspaceFolders}`);
+	if (workspaceFolders.length == null && params.rootUri != null) {
+		workspaceFolders.push(uri2path(params.rootUri));
 	}
 
 	const result: InitializeResult = {
@@ -395,6 +389,7 @@ interface CairoLSSettings {
 	venvCommand: string;
 	nileUseVenv: boolean;
 	nileVenvCommand: string;
+	sourceDir?: string;
 }
 
 const DEFAULT_HIGHLIGHTING_COMPILER = "autodetect";
@@ -404,7 +399,7 @@ const DEFAULT_VENV_COMMAND = ". ~/cairo_venv/bin/activate";
 const DEFAULT_NILE_USE_VENV = true;
 const DEFAULT_NILE_VENV_COMMAND = ". env/bin/activate";
 
-let defaultSettings: CairoLSSettings = { highlightingCompiler: DEFAULT_HIGHLIGHTING_COMPILER, maxNumberOfProblems: DEFAULT_MAX_PROBLEMS, useVenv: DEFAULT_USE_VENV, venvCommand: DEFAULT_VENV_COMMAND, nileUseVenv: DEFAULT_NILE_USE_VENV, nileVenvCommand: DEFAULT_NILE_VENV_COMMAND };
+let defaultSettings: CairoLSSettings = { highlightingCompiler: DEFAULT_HIGHLIGHTING_COMPILER, maxNumberOfProblems: DEFAULT_MAX_PROBLEMS, useVenv: DEFAULT_USE_VENV, venvCommand: DEFAULT_VENV_COMMAND, nileUseVenv: DEFAULT_NILE_USE_VENV, nileVenvCommand: DEFAULT_NILE_VENV_COMMAND, sourceDir: undefined };
 let globalSettings: CairoLSSettings = defaultSettings;
 
 // Cache the settings of all open documents
@@ -673,6 +668,14 @@ function getCommandPrefix(settings: CairoLSSettings) {
 	return commandPrefix;
 }
 
+function appendSourceDir(basePath: string, sourceDir: string) {
+	if (sourceDir !== undefined && sourceDir.length > 0) {
+		return basePath + '/' + sourceDir;
+	} else {
+		return basePath;
+	}
+}
+
 /**
  * Gets the compile command (using Cairo or StarkNet compiler).
  * If highlighing compiler setting is set to autodetect, this is based on whether "%lang starknet" is defined in the directives.
@@ -683,8 +686,18 @@ function getCommandPrefix(settings: CairoLSSettings) {
  */
 function getCompileCommand(settings: CairoLSSettings, tempFiles: TempFiles, textDocumentContents?: string): string {
 	let cairoPathParam = "";
-	if (delimitedWorkspaceFolders != null && delimitedWorkspaceFolders.length > 0) {
-		cairoPathParam = "--cairo_path="+delimitedWorkspaceFolders+" ";
+
+	const sourceDir = 'src';
+
+	if (workspaceFolders.length > 0) {
+		cairoPathParam = '--cairo_path=';
+		for (i = 0; i < workspaceFolders.length; i++) {
+			cairoPathParam += appendSourceDir(workspaceFolders[i], sourceDir);
+			if (i < workspaceFolders.length - 1) {
+				cairoPathParam += ':';
+			}
+		}
+		cairoPathParam += ' ';
 	}
 	const CAIRO_COMPILE_COMMAND = "cairo-compile " + cairoPathParam + tempFiles.sourcePath + " --output " + tempFiles.outputName;
 	const STARKNET_COMPILE_COMMAND = "starknet-compile " + cairoPathParam + tempFiles.sourcePath + " --output " + tempFiles.outputName;
@@ -1059,7 +1072,15 @@ function convertPathToImport(relativePath: any): string {
 async function initPackageSearchPaths(uri: string) {
 	if (packageSearchPaths === undefined) {
 		const packageLocation = await getPythonLibraryLocation(uri);
-		packageSearchPaths = delimitedWorkspaceFolders + ";" + packageLocation;
+
+		const sourceDir = 'src';
+
+		packageSearchPaths = '';
+		for (let i = 0; i < workspaceFolders.length; i++) {
+			packageSearchPaths += appendSourceDir(workspaceFolders[i], sourceDir) + ';';
+		}
+
+		packageSearchPaths += ";" + packageLocation;
 		connection.console.log(`Package search paths: ${packageSearchPaths}`);
 	}
 }
