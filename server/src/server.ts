@@ -1018,6 +1018,8 @@ async function getAllCairoFilesStartingWith(uri: string, prefix: string) : Promi
 
 	for (let searchPath of packageSearchPathsArray) {
 
+		connection.console.log(`For search path: ${searchPath}`);
+
 		const lastDotIndex = prefix.lastIndexOf('.');
 		const parentFolderOfPrefix = prefix.substring(0, lastDotIndex);
 		const parentFolderAsPath = parentFolderOfPrefix.split('.').join('/');
@@ -1081,7 +1083,7 @@ async function initPackageSearchPaths(uri: string) {
 			packageSearchPaths += appendSourceDir(workspaceFolders[i], sourceDir) + ';';
 		}
 
-		packageSearchPaths += ";" + packageLocation;
+		packageSearchPaths += packageLocation;
 		connection.console.log(`Package search paths: ${packageSearchPaths}`);
 	}
 }
