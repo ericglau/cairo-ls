@@ -36,7 +36,7 @@ import {
 } from 'vscode-languageserver-textdocument';
 
 // Import Cairo keywords
-import { BASE_LVL_KEYWORDS, FUNC_LVL_KEYWORDS } from "./keywords"
+import { BASE_LVL_KEYWORDS, FUNC_LVL_KEYWORDS, BASE_STARKNET_KEYWORDS } from "./keywords"
 
 // Create a connection for the server. The connection uses Node's IPC as a transport.
 // Also include all preview / proposed LSP features.
@@ -992,7 +992,21 @@ connection.onCompletion(
 		const completionItems: CompletionItem[] = [];
 
 		const textDocumentFromURI = documents.get(textDocPositionParams.textDocument.uri);
-		
+		// Recommandations change depending on the highlightingCompiler
+		const { highlightingCompiler } = await getDocumentSettings(textDocPositionParams.textDocument.uri);
+
+		let compiler = highlightingCompiler;
+		if (compiler == "autodetect") {
+			// If highlighting compiler is autodetect, read the first line of the file and check if it
+			// is %lang starknet
+			compiler = textDocumentFromURI?.getText({ 
+				start: { character: 0, line: 0 },
+				end: { character: 0, line: 1 } 
+			}).startsWith("%lang starknet") 
+				? "starknet" 
+				: "cairo";
+		} 
+
 		// If couldn't fetch the text, return empty list
 		if (textDocumentFromURI == null)
 			return completionItems;
@@ -1002,9 +1016,13 @@ connection.onCompletion(
 
 		switch(syntaxType) {
 			case SyntaxType.Base:
-				return BASE_LVL_KEYWORDS;
+				return compiler == "starknet" 
+					? [...BASE_LVL_KEYWORDS, ...BASE_STARKNET_KEYWORDS] 
+					: BASE_LVL_KEYWORDS;
+
 			case SyntaxType.Function:
 				return FUNC_LVL_KEYWORDS;
+			
 			case SyntaxType.ImportModule: {
 				const textAroundCursor = getTextAroundCursor(position, textDocumentFromURI);
 				if (textAroundCursor == undefined)
@@ -1019,15 +1037,17 @@ connection.onCompletion(
 				}
 				return completionItems;
 			}
+			
 			case SyntaxType.ImportKeyword: { 
 				const textAroundCursor = getTextAroundCursor(position, textDocumentFromURI);
 				if (textAroundCursor == undefined)
 					return completionItems;
 				const { textBeforeCursor, textAfterCursor } = textAroundCursor;
-				
+
 				completionItems.push(getNewCompletionItem(textDocPositionParams, "import", "import", 0, textBeforeCursor, textAfterCursor));
 				return completionItems;
 			}
+			
 			case SyntaxType.ImportFunction: {
 				const textAroundCursor = getTextAroundCursor(position, textDocumentFromURI);
 				if (textAroundCursor == undefined)
@@ -1043,11 +1063,13 @@ connection.onCompletion(
 				}
 				return completionItems;
 			}
+			
 			case SyntaxType.ImportFunctionP: {
 				// Since there are multiple lines involved, the way we'll get the module name will differ
 				const fileStart = { line: 0, character: 0 };
 				const cursorPosition = { line: position.line, character: position.character };
 
+				// Match the text until cursor to the regex, afterwards get the 1st group
 				const importFunctionRegex = /^from[ \t]+([a-zA-Z0-9._]+)[ \t]+import\s*\((?![\s\S]*\))/m
 				const textUpToCursor = textDocumentFromURI.getText({start: fileStart, end: cursorPosition});
 
