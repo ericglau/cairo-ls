@@ -143,22 +143,22 @@ const FUNC_LVL_KEYWORDS: CompletionItem[] = [
 // Conventionally this includes only @ decorators
 const BASE_STARKNET_KEYWORDS: CompletionItem[] = [
 	{
-		label: "@storage_var",
+		label: "storage_var",
 		kind: CompletionItemKind.Property,
 		detail: "storage variable"
 	},
 	{
-		label: "@view",
+		label: "view",
 		kind: CompletionItemKind.Property,
 		detail: "view"
 	},
 	{
-		label: "@external",
+		label: "external",
 		kind: CompletionItemKind.Property,
 		detail: "external"
 	},
 	{
-		label: "@l1_handler",
+		label: "l1_handler",
 		kind: CompletionItemKind.Property,
 		detail: "l1 handler"
 	},

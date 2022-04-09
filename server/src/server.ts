@@ -1075,15 +1075,18 @@ function getSyntaxType(position: Position, textDocumentFromURI: TextDocument): S
 	// determine if we're inside a function/from statement etc.
 	const textUpToCursor = textDocumentFromURI.getText({start: fileStart, end: cursorPosition});
 	
+	// The order here might matter, as they are evaluated top-to-bottom
 	const regexes = [
 		// func ...{}()
 		// Match func only if there's no end afterwards
 		{ exp: /^func(?!(.|\s)*^end)/gm, syn: SyntaxType.Function },
 		// from module import (
 		// Match only if there's no matching ")" meaning we're inside the parantheses
-		{ exp: /^from[ \t]+[a-zA-Z0-9_.]*[ \t]+import[ \t]*\((?![\s\S]*\))/gm, syn: SyntaxType.ImportFunctionP },
+		// After the parantheses it will also match any number of function names
+		{ exp: /^from[ \t]+[a-zA-Z0-9_.]*[ \t]+import[ \t]*\((?:[ \n\t]*[a-zA-Z0-9_.]*[ \t]*,*)*(?![\s\S]*\))/gm, syn: SyntaxType.ImportFunctionP },
 		// from module import
-		{ exp: /^from[ \t]+[a-zA-Z0-9_.]*[ \t]+import[ \t]*$/gm, syn: SyntaxType.ImportFunction },
+		// Any number for function names seperated by commas are also matched
+		{ exp: /^from[ \t]+[a-zA-Z0-9_.]*[ \t]+import[ \t]*(?:[a-zA-Z0-9_.]*[ \t]*,*[ \t]*)*$/gm, syn: SyntaxType.ImportFunction },
 		// from
 		{ exp: /^from[ \t]+[a-zA-Z0-9_.]*$/gm, syn: SyntaxType.ImportModule },
 		// from module 
