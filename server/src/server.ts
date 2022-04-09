@@ -922,70 +922,190 @@ function getQuickFix(diagnostic: Diagnostic, title: string, range: Range, replac
 }
 
 // This handler provides the initial list of the completion items.
+// connection.onCompletion(
+// 	async (textDocPositionParams: TextDocumentPositionParams): Promise<CompletionItem[]> => {
+// 		let completionItems: CompletionItem[] = [];
+
+// 		let textDocumentFromURI = documents.get(textDocPositionParams.textDocument.uri);
+// 		if (textDocumentFromURI != null) {
+// 			let importStatement = getImportAroundPosition(textDocPositionParams.position, textDocumentFromURI);
+// 			if (importStatement === undefined) {
+// 				// return empty since it's not an import statement that we can help with
+// 				return completionItems;
+// 			}
+// 			switch(importStatement.importType) { 
+// 				case ImportType.Module: { 
+// 					const packages = await getAllCairoFilesStartingWith(textDocPositionParams.textDocument.uri, importStatement.textBeforeCursor);
+// 					for (const packageString of packages) {
+// 						completionItems.push(getNewCompletionItem(textDocPositionParams, packageString, packageString, 0, importStatement.textBeforeCursor, importStatement.textAfterCursor));
+// 					}
+// 					break; 
+// 				} 
+// 				case ImportType.ImportKeyword: { 
+// 					completionItems.push(getNewCompletionItem(textDocPositionParams, "import", "import", 0, importStatement.textBeforeCursor, importStatement.textAfterCursor));
+// 					break; 
+// 				} 
+// 				case ImportType.Function: { 
+// 					await initPackageSearchPaths(textDocPositionParams.textDocument.uri);
+
+// 					let moduleName = getModuleNameFromImportPosition(textDocPositionParams, textDocumentFromURI);
+
+// 					let { modulePath } = getModuleURI(moduleName);
+						
+// 					// Get function location
+// 					let moduleContents : string = fs.readFileSync(modulePath, 'utf8');
+// 					let lines = moduleContents.split('\n');
+// 					let importItems: Set<string> = new Set<string>(); // keep a set of unique entries
+// 					for (var i = 0; i < lines.length; i++) {
+// 						let line: string = lines[i].trim();
+// 						if (line.length == 0 || line.startsWith("#")) { // ignore whitespace or comments
+// 							continue;
+// 						}
+// 						const FUNC = "func";
+// 						const STRUCT = "struct";
+// 						const NAMESPACE = "namespace";
+// 						const isFunction = line.startsWith(FUNC) && line.length > FUNC.length+1 && line.charAt(FUNC.length).match(/\s/);
+// 						const isStruct = line.startsWith(STRUCT) && line.length > STRUCT.length+1 && line.charAt(STRUCT.length).match(/\s/);
+// 						const isNamespace = line.startsWith(NAMESPACE) && line.length > NAMESPACE.length+1 && line.charAt(NAMESPACE.length).match(/\s/);
+// 						if (isFunction || isStruct || isNamespace) {
+// 							let importItem = line.split(/[\s{(:]+/)[1];
+// 							importItems.add(importItem);
+// 						}				
+// 					}
+// 					for (let i of importItems) {
+// 						completionItems.push(getNewCompletionItem(textDocPositionParams, i, i, 0, importStatement.textBeforeCursor, importStatement.textAfterCursor));
+// 					}
+// 					break; 
+// 				} 
+// 				default: { 
+// 				   break; 
+// 				} 
+// 			 } 
+// 		}
+// 		return completionItems;
+// 	}
+// );
+
+// This handler provides the initial list of the completion items.
 connection.onCompletion(
 	async (textDocPositionParams: TextDocumentPositionParams): Promise<CompletionItem[]> => {
-		let completionItems: CompletionItem[] = [];
+		const completionItems: CompletionItem[] = [];
 
-		let textDocumentFromURI = documents.get(textDocPositionParams.textDocument.uri)
-		if (textDocumentFromURI != null) {
-			let importStatement = getImportAroundPosition(textDocPositionParams.position, textDocumentFromURI);
-			if (importStatement === undefined) {
-				// return empty since it's not an import statement that we can help with
+		const textDocumentFromURI = documents.get(textDocPositionParams.textDocument.uri);
+		
+		// If couldn't fetch the text, return empty list
+		if (textDocumentFromURI == null)
+			return completionItems;
+
+		const position = textDocPositionParams.position;
+		const syntaxType = getSyntaxType(position, textDocumentFromURI);
+
+		switch(syntaxType) {
+			case SyntaxType.Base:
+				return BASE_LVL_KEYWORDS;
+			case SyntaxType.Function:
+				return FUNC_LVL_KEYWORDS;
+			case SyntaxType.ImportModule: {
+				const textAroundCursor = getTextAroundCursor(position, textDocumentFromURI);
+				if (textAroundCursor == undefined)
+					return completionItems;
+				const { textBeforeCursor, textAfterCursor } = textAroundCursor;
+				
+				const packages = await getAllCairoFilesStartingWith(
+						textDocPositionParams.textDocument.uri, textBeforeCursor);
+
+				for (const packageString of packages) {
+					completionItems.push(getNewCompletionItem(textDocPositionParams, packageString, packageString, 0, textBeforeCursor, textAfterCursor));
+				}
 				return completionItems;
 			}
-			switch(importStatement.importType) { 
-				case ImportType.Module: { 
-					const packages = await getAllCairoFilesStartingWith(textDocPositionParams.textDocument.uri, importStatement.textBeforeCursor);
-					for (const packageString of packages) {
-						completionItems.push(getNewCompletionItem(textDocPositionParams, packageString, packageString, 0, importStatement.textBeforeCursor, importStatement.textAfterCursor));
-					}
-					break; 
-				} 
-				case ImportType.ImportKeyword: { 
-					completionItems.push(getNewCompletionItem(textDocPositionParams, "import", "import", 0, importStatement.textBeforeCursor, importStatement.textAfterCursor));
-					break; 
-				} 
-				case ImportType.Function: { 
-					await initPackageSearchPaths(textDocPositionParams.textDocument.uri);
+			case SyntaxType.ImportKeyword: { 
+				const textAroundCursor = getTextAroundCursor(position, textDocumentFromURI);
+				if (textAroundCursor == undefined)
+					return completionItems;
+				const { textBeforeCursor, textAfterCursor } = textAroundCursor;
+				
+				completionItems.push(getNewCompletionItem(textDocPositionParams, "import", "import", 0, textBeforeCursor, textAfterCursor));
+				return completionItems;
+			}
+			case SyntaxType.ImportFunction: {
+				const textAroundCursor = getTextAroundCursor(position, textDocumentFromURI);
+				if (textAroundCursor == undefined)
+					return completionItems;
+				const { textBeforeCursor, textAfterCursor } = textAroundCursor;
 
-					let moduleName = getModuleNameFromImportPosition(textDocPositionParams, textDocumentFromURI);
+				await initPackageSearchPaths(textDocPositionParams.textDocument.uri);
 
-					let { modulePath } = getModuleURI(moduleName);
-						
-					// Get function location
-					let moduleContents : string = fs.readFileSync(modulePath, 'utf8');
-					let lines = moduleContents.split('\n');
-					let importItems: Set<string> = new Set<string>(); // keep a set of unique entries
-					for (var i = 0; i < lines.length; i++) {
-						let line: string = lines[i].trim();
-						if (line.length == 0 || line.startsWith("#")) { // ignore whitespace or comments
-							continue;
-						}
-						const FUNC = "func";
-						const STRUCT = "struct";
-						const NAMESPACE = "namespace";
-						const isFunction = line.startsWith(FUNC) && line.length > FUNC.length+1 && line.charAt(FUNC.length).match(/\s/);
-						const isStruct = line.startsWith(STRUCT) && line.length > STRUCT.length+1 && line.charAt(STRUCT.length).match(/\s/);
-						const isNamespace = line.startsWith(NAMESPACE) && line.length > NAMESPACE.length+1 && line.charAt(NAMESPACE.length).match(/\s/);
-						if (isFunction || isStruct || isNamespace) {
-							let importItem = line.split(/[\s{(:]+/)[1];
-							importItems.add(importItem);
-						}				
-					}
-					for (let i of importItems) {
-						completionItems.push(getNewCompletionItem(textDocPositionParams, i, i, 0, importStatement.textBeforeCursor, importStatement.textAfterCursor));
-					}
-					break; 
-				} 
-				default: { 
-				   break; 
-				} 
-			 } 
+				let moduleName = getModuleNameFromImportPosition(textDocPositionParams, textDocumentFromURI);
+				const importItems = getModuleFunctions(moduleName);
+				for (let i of importItems) {
+					completionItems.push(getNewCompletionItem(textDocPositionParams, i, i, 0, textBeforeCursor, textAfterCursor));
+				}
+				return completionItems;
+			}
+			case SyntaxType.ImportFunctionP: {
+				// Since there are multiple lines involved, the way we'll get the module name will differ
+				const fileStart = { line: 0, character: 0 };
+				const cursorPosition = { line: position.line, character: position.character };
+
+				const importFunctionRegex = /^from[ \t]+([a-zA-Z0-9._]+)[ \t]+import\s*\((?![\s\S]*\))/m
+				const textUpToCursor = textDocumentFromURI.getText({start: fileStart, end: cursorPosition});
+
+				const moduleName = textUpToCursor.match(importFunctionRegex)?.[1];
+				if (moduleName == undefined) {
+					connection.console.log("Couldn't find moduleName, got " + moduleName);
+					return completionItems;
+				}
+
+				const importItems = getModuleFunctions(moduleName);
+				for (const item of importItems) {
+					// Since I match the module name by reading from top of the file, it'd be harder to find
+					// start and end indices of each occurence. Default values of CompletionItem should be 
+					// enough anyways
+					completionItems.push({
+						label: item,
+						kind: CompletionItemKind.Module,
+						sortText: String(0)
+					});
+				}
+				return completionItems;
+			}
 		}
-		return completionItems;
+
 	}
 );
 
+// Reads a module and extracts a set of its functions
+function getModuleFunctions(moduleName: string): Set<string> {
+	console.log(moduleName)
+	const { modulePath } = getModuleURI(moduleName);
+	console.log(modulePath);
+					
+	// Get function location from the module
+	let moduleContents : string = fs.readFileSync(modulePath, 'utf8');
+	let lines = moduleContents.split('\n');
+	let importItems: Set<string> = new Set<string>(); // keep a set of unique entries
+	for (var i = 0; i < lines.length; i++) {
+		let line: string = lines[i].trim();
+		if (line.length == 0 || line.startsWith("#")) { // ignore whitespace or comments
+			continue;
+		}
+		const FUNC = "func";
+		const STRUCT = "struct";
+		const NAMESPACE = "namespace";
+		const isFunction = line.startsWith(FUNC) && line.length > FUNC.length+1 && line.charAt(FUNC.length).match(/\s/);
+		const isStruct = line.startsWith(STRUCT) && line.length > STRUCT.length+1 && line.charAt(STRUCT.length).match(/\s/);
+		const isNamespace = line.startsWith(NAMESPACE) && line.length > NAMESPACE.length+1 && line.charAt(NAMESPACE.length).match(/\s/);
+		if (isFunction || isStruct || isNamespace) {
+			let importItem = line.split(/[\s{(:]+/)[1];
+			importItems.add(importItem);
+		}				
+	}
+
+	return importItems;
+}
+
+// Gets text before and after the cursor ( on the same line )
 function getTextAroundCursor(position: Position, textDocumentFromURI: TextDocument) {
 	const startOfLine = { 
 		line: position.line, 
@@ -1017,6 +1137,7 @@ enum SyntaxType {
 	ImportModule,			// from
 	ImportKeyword,		// from <moduleName>
 	ImportFunction,		// from <moduleName> import
+	ImportFunctionP,	// from <moduleName> import ( ... )	
 	Function,					// func ...{}():
 	Base							// file level
 }
@@ -1024,7 +1145,7 @@ enum SyntaxType {
 // Infers the type of the syntax the cursor is pointing at
 // Returns the inferred syntax type
 function getSyntaxType(position: Position, textDocumentFromURI: TextDocument): SyntaxType {
-	const fileStart = {line: 0, character: 0};
+	const fileStart = { line: 0, character: 0 };
 	const cursorPosition = { line: position.line, character: position.character };
 
 	// Get text from the start of the document to position of the cursor
@@ -1038,13 +1159,13 @@ function getSyntaxType(position: Position, textDocumentFromURI: TextDocument): S
 		{ exp: /^func(?!(.|\s)*^end)/gm, syn: SyntaxType.Function },
 		// from module import (
 		// Match only if there's no matching ")" meaning we're inside the parantheses
-		{ exp: /^from\s+.*\s+import\s*\((?![\s\S]*\))/gm, syn: SyntaxType.ImportFunction },
+		{ exp: /^from\s+.*\s+import\s*\((?![\s\S]*\))/gm, syn: SyntaxType.ImportFunctionP },
 		// from module import
 		{ exp: /^from\s+.*\s+import[ \t]*$/gm, syn: SyntaxType.ImportFunction },
-		// from module 
-		{ exp: /^from\s+.*[ \t]*$/gm, syn: SyntaxType.ImportKeyword },
 		// from
-		{ exp: /^from[ \t]*$/gm, syn: SyntaxType.ImportModule },
+		{ exp: /^from[ \t]+[a-zA-Z0-9_.]*$/gm, syn: SyntaxType.ImportModule },
+		// from module 
+		{ exp: /^from\s+[a-zA-Z0-9_.]+[ \t]+$/gm, syn: SyntaxType.ImportKeyword },
 	]
 
 	// For each regex, if expression matches return its syntax type
