@@ -156,6 +156,6 @@ const FUNC_LVL_KEYWORDS: CompletionItem[] = [
 ];
 
 
-module.exports = {
+export {
 	FUNC_LVL_KEYWORDS, BASE_LVL_KEYWORDS
 }

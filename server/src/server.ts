@@ -35,6 +35,9 @@ import {
 	TextDocument, Range, TextEdit
 } from 'vscode-languageserver-textdocument';
 
+// Import Cairo keywords
+import { BASE_LVL_KEYWORDS, FUNC_LVL_KEYWORDS } from "./keywords"
+
 // Create a connection for the server. The connection uses Node's IPC as a transport.
 // Also include all preview / proposed LSP features.
 let connection = createConnection(ProposedFeatures.all);
@@ -983,9 +986,17 @@ connection.onCompletion(
 	}
 );
 
+enum SyntaxType {
+	ImportModule,			// from
+	ImportKeyword,		// from <moduleName>
+	ImportFunction,		// from <moduleName> import
+	Function,					// func ...{}():
+	Base							// file level
+}
+
 // Infers the type of the syntax the cursor is pointing at
-// Returns either a ImportLocation, FunctionLocation or BaseLocation depending on the syntax
-function getSyntaxType(position: Position, textDocumentFromURI: TextDocument) {
+// Returns the inferred syntax type
+function getSyntaxType(position: Position, textDocumentFromURI: TextDocument): SyntaxType {
 	const fileStart = {line: 0, character: 0};
 	const cursorPosition = { line: position.line, character: position.character };
 
@@ -994,20 +1005,30 @@ function getSyntaxType(position: Position, textDocumentFromURI: TextDocument) {
 	// determine if we're inside a function/from statement etc.
 	const textUpToCursor = textDocumentFromURI.getText({start: fileStart, end: cursorPosition});
 	
-	const regexes = {
+	const regexes = [
 		// func ...{}()
 		// Match func only if there's no end afterwards
-		funcMatch: /^func(?!(.|\s)*^end)/gm,
-		// from
-		from: /^from[ \t]$/gm,
-		// from module 
-		fromModule: /^from\s+.*[ \t]$/gm,
-		// from module import
-		importOneLiner: /^from\s+.*\s+import[ \t]*$/gm,
+		{ exp: /^func(?!(.|\s)*^end)/gm, syn: SyntaxType.Function },
 		// from module import (
 		// Match only if there's no matching ")" meaning we're inside the parantheses
-		importParantheses: /^from\s+.*\s+import\s*\((?![\s\S]*\))/gm
+		{ exp: /^from\s+.*\s+import\s*\((?![\s\S]*\))/gm, syn: SyntaxType.ImportFunction },
+		// from module import
+		{ exp: /^from\s+.*\s+import[ \t]*$/gm, syn: SyntaxType.ImportFunction },
+		// from module 
+		{ exp: /^from\s+.*[ \t]*$/gm, syn: SyntaxType.ImportKeyword },
+		// from
+		{ exp: /^from[ \t]*$/gm, syn: SyntaxType.ImportModule },
+	]
+
+	// For each regex, if expression matches return its syntax type
+	for (const regex of regexes) {
+		if(regex.exp.test(textUpToCursor)) {
+			return regex.syn;
+		}
 	}
+
+	// Return base in case of no match
+	return SyntaxType.Base;
 }
 
 function getModuleNameFromImportPosition(textDocPositionParams: TextDocumentPositionParams, textDocumentFromURI: TextDocument) {
