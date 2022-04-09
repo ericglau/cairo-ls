@@ -957,7 +957,7 @@ connection.onCompletion(
 				const cursorPosition = { line: position.line, character: position.character };
 
 				// Match the text until cursor to the regex, afterwards get the 1st group
-				const importFunctionRegex = /^from[ \t]+([a-zA-Z0-9._]+)[ \t]+import\s*\((?![\s\S]*\))/m
+				const importFunctionRegex = /^from[ \t]+([a-zA-Z0-9._]+)[ \t]+import[ \t]*\((?![\s\S]*\))/m
 				const textUpToCursor = textDocumentFromURI.getText({start: fileStart, end: cursorPosition});
 
 				const moduleName = textUpToCursor.match(importFunctionRegex)?.[1];
@@ -1081,13 +1081,13 @@ function getSyntaxType(position: Position, textDocumentFromURI: TextDocument): S
 		{ exp: /^func(?!(.|\s)*^end)/gm, syn: SyntaxType.Function },
 		// from module import (
 		// Match only if there's no matching ")" meaning we're inside the parantheses
-		{ exp: /^from\s+.*\s+import\s*\((?![\s\S]*\))/gm, syn: SyntaxType.ImportFunctionP },
+		{ exp: /^from[ \t]+[a-zA-Z0-9_.]*[ \t]+import[ \t]*\((?![\s\S]*\))/gm, syn: SyntaxType.ImportFunctionP },
 		// from module import
-		{ exp: /^from\s+.*\s+import[ \t]*$/gm, syn: SyntaxType.ImportFunction },
+		{ exp: /^from[ \t]+[a-zA-Z0-9_.]*[ \t]+import[ \t]*$/gm, syn: SyntaxType.ImportFunction },
 		// from
 		{ exp: /^from[ \t]+[a-zA-Z0-9_.]*$/gm, syn: SyntaxType.ImportModule },
 		// from module 
-		{ exp: /^from\s+[a-zA-Z0-9_.]+[ \t]+$/gm, syn: SyntaxType.ImportKeyword },
+		{ exp: /^from[ \t]+[a-zA-Z0-9_.]+[ \t]+$/gm, syn: SyntaxType.ImportKeyword },
 	]
 
 	// For each regex, if expression matches return its syntax type
