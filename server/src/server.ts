@@ -986,6 +986,33 @@ connection.onCompletion(
 	}
 );
 
+function getTextAroundCursor(position: Position, textDocumentFromURI: TextDocument) {
+	const startOfLine = { 
+		line: position.line, 
+		character: 0 
+	};
+	const cursorPosition = { 
+		line: position.line, 
+		character: position.character
+	};
+	const nextLine = {
+		line: position.line + 1,
+		character: 0,
+	};
+
+	const lineUpToCursor = textDocumentFromURI.getText({ start: startOfLine, end: cursorPosition });
+	const lineUpToCursorSplit = lineUpToCursor.split(/\s+/);
+	if(lineUpToCursorSplit?.[0] === undefined)
+		return undefined
+
+	const textBeforeCursor = lineUpToCursorSplit[lineUpToCursorSplit.length - 1];
+		
+	const textAfterCursor = textDocumentFromURI
+		.getText({ start: cursorPosition, end: nextLine })?.split(/\s+/)[0];
+	
+	return { textBeforeCursor, textAfterCursor };
+}
+
 enum SyntaxType {
 	ImportModule,			// from
 	ImportKeyword,		// from <moduleName>
