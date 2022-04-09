@@ -1,8 +1,7 @@
 import { CompletionItem, CompletionItemKind } from 'vscode-languageserver';
 
 // Keywords available all around the file
-// A "sortText" key is added to each keyword object, which is "kw" + idx of the keyword
-// "kw" is added so that the order doesn't mess up the import completions
+// A "sortText" key is added to each keyword object so that it won't mix up with import suggestions
 const BASE_LVL_KEYWORDS: CompletionItem[] = [
 	{
 		label: "namespace",
@@ -54,28 +53,8 @@ const BASE_LVL_KEYWORDS: CompletionItem[] = [
 		label: "error_message",
 		kind: CompletionItemKind.Class,
 		detail: "error message"
-	},
-	{
-		label: "@storage_var",
-		kind: CompletionItemKind.Property,
-		detail: "storage variable"
-	},
-	{
-		label: "@view",
-		kind: CompletionItemKind.Property,
-		detail: "view"
-	},
-	{
-		label: "@external",
-		kind: CompletionItemKind.Property,
-		detail: "external"
-	},
-	{
-		label: "@l1_handler",
-		kind: CompletionItemKind.Property,
-		detail: "l1 handler"
-	},
-].map((kw, idx) => Object.assign(kw, { sortText: "kw" + idx.toString() }));
+	}
+].map((kw) => Object.assign(kw, { sortText: "1" }));
 
 // Keywords only available inside a function
 const FUNC_LVL_KEYWORDS: CompletionItem[] = [
@@ -160,7 +139,31 @@ const FUNC_LVL_KEYWORDS: CompletionItem[] = [
 	},
 ];
 
+// Extension should both support Cairo and Starknet, seperate both
+// Conventionally this includes only @ decorators
+const BASE_STARKNET_KEYWORDS: CompletionItem[] = [
+	{
+		label: "@storage_var",
+		kind: CompletionItemKind.Property,
+		detail: "storage variable"
+	},
+	{
+		label: "@view",
+		kind: CompletionItemKind.Property,
+		detail: "view"
+	},
+	{
+		label: "@external",
+		kind: CompletionItemKind.Property,
+		detail: "external"
+	},
+	{
+		label: "@l1_handler",
+		kind: CompletionItemKind.Property,
+		detail: "l1 handler"
+	},
+].map((kw) => Object.assign(kw, { sortText: "2" }));
 
 export {
-	FUNC_LVL_KEYWORDS, BASE_LVL_KEYWORDS
+	FUNC_LVL_KEYWORDS, BASE_LVL_KEYWORDS, BASE_STARKNET_KEYWORDS
 }
