@@ -983,6 +983,33 @@ connection.onCompletion(
 	}
 );
 
+// Infers the type of the syntax the cursor is pointing at
+// Returns either a ImportLocation, FunctionLocation or BaseLocation depending on the syntax
+function getSyntaxType(position: Position, textDocumentFromURI: TextDocument) {
+	const fileStart = {line: 0, character: 0};
+	const cursorPosition = { line: position.line, character: position.character };
+
+	// Get text from the start of the document to position of the cursor
+	// This might be too exhaustive on a large file, should change if there's a better way to 
+	// determine if we're inside a function/from statement etc.
+	const textUpToCursor = textDocumentFromURI.getText({start: fileStart, end: cursorPosition});
+	
+	const regexes = {
+		// func ...{}()
+		// Match func only if there's no end afterwards
+		funcMatch: /^func(?!(.|\s)*^end)/gm,
+		// from
+		from: /^from[ \t]$/gm,
+		// from module 
+		fromModule: /^from\s+.*[ \t]$/gm,
+		// from module import
+		importOneLiner: /^from\s+.*\s+import[ \t]*$/gm,
+		// from module import (
+		// Match only if there's no matching ")" meaning we're inside the parantheses
+		importParantheses: /^from\s+.*\s+import\s*\((?![\s\S]*\))/gm
+	}
+}
+
 function getModuleNameFromImportPosition(textDocPositionParams: TextDocumentPositionParams, textDocumentFromURI: TextDocument) {
 	let startOfLine = {
 		line: textDocPositionParams.position.line,
