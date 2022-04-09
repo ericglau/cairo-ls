@@ -5,6 +5,11 @@ import { CompletionItem, CompletionItemKind } from 'vscode-languageserver';
 // "kw" is added so that the order doesn't mess up the import completions
 const BASE_LVL_KEYWORDS: CompletionItem[] = [
 	{
+		label: "namespace",
+		kind: CompletionItemKind.Keyword,
+		detail: "namespace",
+	},
+	{
 		label: "func",
 		kind: CompletionItemKind.Keyword,
 		detail: "function",
