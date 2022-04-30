@@ -407,7 +407,9 @@ end
 
 		let importNameStartIndex = line.indexOf(importName);
 		let importNameEndIndex = line.indexOf(endOfNameDelimiter);
-		if (importNameStartIndex >= 0 && importNameEndIndex > importNameStartIndex && line.substring(importNameStartIndex, importNameEndIndex).trim() === importName) {
+		if (importNameStartIndex >= 0 && importNameEndIndex > importNameStartIndex 
+				&& /\s+/.test(line.charAt(importNameStartIndex - 1))
+				&& line.substring(importNameStartIndex, importNameEndIndex).trim() === importName) {
 			connection.console.log(`Found function or struct: ${line} with line number ${i}`);
 			let functionLineRange: Range = {
 				start: { character: 0, line: i },
