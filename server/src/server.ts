@@ -28,7 +28,8 @@ import {
 	HoverParams,
 	Hover,
 	Position,
-	LocationLink
+	LocationLink,
+	Definition
 } from 'vscode-languageserver';
 
 import {
@@ -294,8 +295,8 @@ end
 				let link : LocationLink = LocationLink.create(moduleUrl, entireRange, entireRange);
 				links.push(link);
 				break;
-			} else if (word === importName) {
-				connection.console.log(`Going to definition for import: ${moduleName}`);
+			} else if (word === importName || wordWithDot.startsWith(importName)) {
+				connection.console.log(`Going to definition for import: ${importName}`);
 
 				let { moduleUrl, modulePath } = getModuleURI(moduleName);
 				if (moduleUrl === undefined || modulePath === undefined) {
@@ -305,28 +306,76 @@ end
 				// Get function location
 				let moduleContents : string = fs.readFileSync(modulePath, 'utf8');
 				let lines = moduleContents.split('\n');
+				let currentNamespace: string|undefined = undefined;
 				for (var i = 0; i < lines.length; i++) {
 					let line: string = lines[i].trim();
 					if (line.length == 0 || line.startsWith("#")) { // ignore whitespace or comments
 						continue;
 					}
 					const FUNC = "func";
+					const STRUCT = "struct";
+					const NAMESPACE = "namespace";
+
 					const isFunction = line.startsWith(FUNC) && line.length > FUNC.length+1 && line.charAt(FUNC.length).match(/\s/);
 					if (isFunction) {
-						pushDefinitionIfFound(line, importName, moduleUrl, "{");
-						pushDefinitionIfFound(line, importName, moduleUrl, "(");
+						if (currentNamespace === undefined) {
+							pushDefinitionIfFound(line, importName, moduleUrl, "{", FUNC);
+							pushDefinitionIfFound(line, importName, moduleUrl, "(", FUNC);
+						} else {
+							const [ namespace, func ] = wordWithDot.split('.');
+							pushDefinitionIfFound(line, func, moduleUrl, "{", "namespace-function", namespace);
+							pushDefinitionIfFound(line, func, moduleUrl, "(", "namespace-function", namespace);
+						}
 					}
-					const STRUCT = "struct";
+
 					const isStruct = line.startsWith(STRUCT) && line.length > STRUCT.length+1 && line.charAt(STRUCT.length).match(/\s/);
 					if (isStruct) {
-						pushDefinitionIfFound(line, importName, moduleUrl, ":");
+						pushDefinitionIfFound(line, importName, moduleUrl, ":", STRUCT);
 					}
-					const NAMESPACE = "namespace";
+
 					const isNamespace = line.startsWith(NAMESPACE) && line.length > NAMESPACE.length+1 && line.charAt(NAMESPACE.length).match(/\s/);
 					if (isNamespace) {
-						pushDefinitionIfFound(line, importName, moduleUrl, ":");
+						currentNamespace = importName;
+						connection.console.log(`Going into namespace: ${currentNamespace}`);
+						pushDefinitionIfFound(line, importName, moduleUrl, ":", NAMESPACE);
 					}
 				}
+			//} else if (wordWithDot.startsWith(importName)) {
+				// connection.console.log(`Going to definition for namespace function: ${wordWithDot}`);
+
+				// let { moduleUrl, modulePath } = getModuleURI(moduleName);
+				// if (moduleUrl === undefined || modulePath === undefined) {
+				// 	break;
+				// }
+
+				// // Get function location
+				// let moduleContents : string = fs.readFileSync(modulePath, 'utf8');
+				// let lines = moduleContents.split('\n');
+				// let currentNamespace: string|undefined = undefined;
+				// for (var i = 0; i < lines.length; i++) {
+				// 	let line: string = lines[i].trim();
+				// 	if (line.length == 0 || line.startsWith("#")) { // ignore whitespace or comments
+				// 		continue;
+				// 	}
+				// 	// keep searching until we find the start of the namespace in the file
+				// 	if (line !== `namespace ${currentNamespace}:`) {
+				// 		continue;
+				// 	}
+				// 	connection.console.log(`Found namespace ${currentNamespace} in file!`);
+
+				// 	const FUNC = "func";
+
+				// 	const isFunction = line.startsWith(FUNC) && line.length > FUNC.length+1 && line.charAt(FUNC.length).match(/\s/);
+				// 	if (isFunction) {
+				// 		if (currentNamespace === undefined) {
+				// 			pushDefinitionIfFound(line, importName, moduleUrl, "{", FUNC);
+				// 			pushDefinitionIfFound(line, importName, moduleUrl, "(", FUNC);
+				// 		} else {
+				// 			pushDefinitionIfFound(line, importName, moduleUrl, "{", "namespace-function", "ERC20"); // TODO placeholder
+				// 			pushDefinitionIfFound(line, importName, moduleUrl, "(", "namespace-function", "ERC20");  // TODO placeholder
+				// 		}
+				// 	}
+				// }
 			}
 		}
 
@@ -355,11 +404,15 @@ end
 		return links;
 	}
 
-	function pushDefinitionIfFound(line: string, importName: string, moduleUrl: any, endOfNameDelimiter: string) {
+	function pushDefinitionIfFound(line: string, importName: string, moduleUrl: any, endOfNameDelimiter: string, type: DefinitionType, inNamespace?: string) {
+		if (inNamespace !== undefined && type !== 'namespace-function') {
+			connection.console.log(`ERROR: pushDefinitionIfFound is not adding a namespace function but a namespace string was provided`);
+		}		
+
 		let importNameStartIndex = line.indexOf(importName);
 		let importNameEndIndex = line.indexOf(endOfNameDelimiter);
 		if (importNameStartIndex >= 0 && importNameEndIndex > importNameStartIndex && line.substring(importNameStartIndex, importNameEndIndex).trim() === importName) {
-			connection.console.log(`Found function or struct: ${line}`);
+			connection.console.log(`Found function or struct: ${line} with line number ${i}`);
 			let functionLineRange: Range = {
 				start: { character: 0, line: i },
 				end: { character: 999, line: i }
@@ -369,6 +422,8 @@ end
 		}
 	}
 });
+
+type DefinitionType = 'func' | 'struct' | 'namespace' | 'namespace-function';
 
 connection.onInitialized(() => {
 	if (hasConfigurationCapability) {
