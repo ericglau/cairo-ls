@@ -1,5 +1,10 @@
 # Change Log
 
+## 0.0.23
+
+- Go to definitions for functions in namespaces
+- Read source directory from setup.cfg
+
 ## 0.0.20
 
 Support `sourceDir` setting for contracts source directory.
