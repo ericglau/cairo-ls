@@ -275,7 +275,7 @@ end
 
 	let position = params.position
 	if (textDocumentFromURI !== undefined) {
-		let { wordWithDot } = getWordAtPosition(position, textDocumentFromURI);
+		let { wordWithDot, word } = getWordAtPosition(position, textDocumentFromURI);
 
 		connection.console.log(`Imports map size: ${imports.size}`);
 
@@ -323,8 +323,11 @@ end
 							pushDefinitionIfFound(line, importName, moduleUrl, "(", FUNC);
 						} else {
 							const [ namespace, func ] = wordWithDot.split('.');
-							pushDefinitionIfFound(line, func, moduleUrl, "{", "namespace-function", namespace);
-							pushDefinitionIfFound(line, func, moduleUrl, "(", "namespace-function", namespace);
+							// if we are hovering over the function portion in namespace.function, add the function definition from the imported module
+							if (word === func) {
+								pushDefinitionIfFound(line, func, moduleUrl, "{", "namespace-function", namespace);
+								pushDefinitionIfFound(line, func, moduleUrl, "(", "namespace-function", namespace);
+							}
 						}
 					}
 
@@ -337,7 +340,12 @@ end
 					if (isNamespace) {
 						currentNamespace = importName;
 						connection.console.log(`Going into namespace: ${currentNamespace}`);
-						pushDefinitionIfFound(line, importName, moduleUrl, ":", NAMESPACE);
+
+						const [ namespace ] = wordWithDot.split('.');
+						// if we are hovering over the namespace portion in namespace.function, add the namespace definition from the imported module
+						if (word === namespace) {
+							pushDefinitionIfFound(line, importName, moduleUrl, ":", NAMESPACE);
+						}
 					}
 				}
 			}
