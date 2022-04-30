@@ -275,7 +275,7 @@ end
 
 	let position = params.position
 	if (textDocumentFromURI !== undefined) {
-		let { wordWithDot, word } = getWordAtPosition(position, textDocumentFromURI);
+		let { wordWithDot } = getWordAtPosition(position, textDocumentFromURI);
 
 		connection.console.log(`Imports map size: ${imports.size}`);
 
@@ -295,7 +295,7 @@ end
 				let link : LocationLink = LocationLink.create(moduleUrl, entireRange, entireRange);
 				links.push(link);
 				break;
-			} else if (word === importName || wordWithDot.startsWith(importName)) {
+			} else if (wordWithDot.startsWith(importName)) {
 				connection.console.log(`Going to definition for import: ${importName}`);
 
 				let { moduleUrl, modulePath } = getModuleURI(moduleName);
@@ -340,42 +340,6 @@ end
 						pushDefinitionIfFound(line, importName, moduleUrl, ":", NAMESPACE);
 					}
 				}
-			//} else if (wordWithDot.startsWith(importName)) {
-				// connection.console.log(`Going to definition for namespace function: ${wordWithDot}`);
-
-				// let { moduleUrl, modulePath } = getModuleURI(moduleName);
-				// if (moduleUrl === undefined || modulePath === undefined) {
-				// 	break;
-				// }
-
-				// // Get function location
-				// let moduleContents : string = fs.readFileSync(modulePath, 'utf8');
-				// let lines = moduleContents.split('\n');
-				// let currentNamespace: string|undefined = undefined;
-				// for (var i = 0; i < lines.length; i++) {
-				// 	let line: string = lines[i].trim();
-				// 	if (line.length == 0 || line.startsWith("#")) { // ignore whitespace or comments
-				// 		continue;
-				// 	}
-				// 	// keep searching until we find the start of the namespace in the file
-				// 	if (line !== `namespace ${currentNamespace}:`) {
-				// 		continue;
-				// 	}
-				// 	connection.console.log(`Found namespace ${currentNamespace} in file!`);
-
-				// 	const FUNC = "func";
-
-				// 	const isFunction = line.startsWith(FUNC) && line.length > FUNC.length+1 && line.charAt(FUNC.length).match(/\s/);
-				// 	if (isFunction) {
-				// 		if (currentNamespace === undefined) {
-				// 			pushDefinitionIfFound(line, importName, moduleUrl, "{", FUNC);
-				// 			pushDefinitionIfFound(line, importName, moduleUrl, "(", FUNC);
-				// 		} else {
-				// 			pushDefinitionIfFound(line, importName, moduleUrl, "{", "namespace-function", "ERC20"); // TODO placeholder
-				// 			pushDefinitionIfFound(line, importName, moduleUrl, "(", "namespace-function", "ERC20");  // TODO placeholder
-				// 		}
-				// 	}
-				// }
 			}
 		}
 
@@ -390,7 +354,7 @@ end
 				let lineTrim = line.substring(5, line.length).trim();
 				let functionNameStartIndex = 0;
 				let functionNameEndIndex = lineTrim.indexOf('{');
-				if (functionNameEndIndex > functionNameStartIndex && lineTrim.substring(functionNameStartIndex, functionNameEndIndex).trim() === word) {
+				if (functionNameEndIndex > functionNameStartIndex && lineTrim.substring(functionNameStartIndex, functionNameEndIndex).trim() === wordWithDot) {
 					connection.console.log(`Found function within the same module: ${line}`);
 					let functionLineRange : Range = {
 						start: { character : 0, line : i },
