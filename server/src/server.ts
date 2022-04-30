@@ -724,10 +724,48 @@ function getCommandPrefix(settings: CairoLSSettings) {
 }
 
 function appendSourceDir(basePath: string, sourceDir?: string) {
-	if (sourceDir !== undefined && sourceDir.length > 0) {
-		return basePath + '/' + sourceDir;
+	const append = sourceDir || getPythonPackageDir(basePath);
+	if (append !== undefined && append.length > 0) {
+		return path.join(basePath, append);
 	} else {
 		return basePath;
+	}
+}
+
+function getPythonPackageDir(basePath: string) {
+	const setupFile = path.join(basePath, 'setup.cfg');
+	try {
+		let contents : string = fs.readFileSync(setupFile, 'utf8');
+		let lines = contents.split('\n');
+		let inOptionsPackagesFind: boolean = false;
+		for (var i = 0; i < lines.length; i++) {
+			let line: string = lines[i].trim();
+			if (line.length == 0) {
+				if (inOptionsPackagesFind) {
+					connection.console.log(`No source directory in Python config`);
+					break;
+				} else {
+					continue;
+				}
+			} else if (line.startsWith("#")) {
+				continue;
+			}
+			if (line === '[options.packages.find]') {
+				inOptionsPackagesFind = true;
+				continue;
+			}
+			if (inOptionsPackagesFind && line.startsWith('where')) {
+				const split = line.split(/\s+/);
+				if (split.length === 3) {
+					connection.console.log(`Using source directory ${split[2]} from Python config file ${setupFile}`);
+					return split[2];
+				} else {
+					connection.console.log(`ERROR: Failed to parse source directory from Python config`);
+				}
+			}
+		}
+	} catch (e) {
+		connection.console.log(`Could not read Python config from ${setupFile}: ` + e);
 	}
 }
 
