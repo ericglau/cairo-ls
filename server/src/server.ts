@@ -1030,6 +1030,8 @@ enum SyntaxType {
 // This handler provides the initial list of the completion items.
 connection.onCompletion(
 	async (textDocPositionParams: TextDocumentPositionParams): Promise<CompletionItem[]> => {
+		await initPackageSearchPaths(textDocPositionParams.textDocument.uri);
+
 		const completionItems: CompletionItem[] = [];
 
 		const textDocumentFromURI = documents.get(textDocPositionParams.textDocument.uri);
