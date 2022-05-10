@@ -1023,6 +1023,7 @@ enum SyntaxType {
 	ImportFunctionP,  // from <moduleName> import ( ... )	
 	FunctionDecl,     // between "func" and ":"
 	Function,         // between ":" and "end"
+	WithAttr,		  // with_attr
 	Base              // file level
 }
 
@@ -1089,6 +1090,10 @@ connection.onCompletion(
 			}
 
 			case SyntaxType.FunctionDecl: {
+				return [];
+			}
+
+			case SyntaxType.WithAttr: {
 				return [];
 			}
 
@@ -1211,23 +1216,33 @@ connection.onCompletion(
 	// method if there is any
 	const reducedType = textUpToCursor.split('\n').reduce((lastType, line) => {
 		if (line.trimLeft().trimRight() == "end") {
-			return SyntaxType.Base;
+			if(lastType === SyntaxType.WithAttr)
+				return SyntaxType.Function;
+			else
+				return SyntaxType.Base;
 		}
 
+		// Capture with_attr
+		if (line.trimLeft().startsWith("with_attr")) {
+			return SyntaxType.WithAttr;
+		}
+
+		// Capture function declaration
 		if (line.trimLeft().startsWith("func") && !line.includes(":")) {
 			return SyntaxType.FunctionDecl;
 		}
 
-		// This wouldn't work too well with implicit arguments but since we don't
-		// have a list of suggestions yet, I skip them
+		// Capture function body
 		if (lastType === SyntaxType.FunctionDecl && line.trimRight().endsWith(":")) {
 			return SyntaxType.Function;
 		}
 
+		// Capture import with parentheses
 		if (line.trimLeft().startsWith("from") && line.includes("(")) {
 			return SyntaxType.ImportFunctionP;
 		}
 
+		// Capture closing parentheses of import
 		if (lastType === SyntaxType.ImportFunctionP && line.includes(")")) {
 			return SyntaxType.Base;
 		}
