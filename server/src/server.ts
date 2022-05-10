@@ -36,6 +36,9 @@ import {
 	TextDocument, Range, TextEdit
 } from 'vscode-languageserver-textdocument';
 
+// Import Cairo keywords
+import { BASE_LVL_KEYWORDS, FUNC_LVL_KEYWORDS, BASE_STARKNET_KEYWORDS } from "./keywords"
+
 // Create a connection for the server. The connection uses Node's IPC as a transport.
 // Also include all preview / proposed LSP features.
 let connection = createConnection(ProposedFeatures.all);
@@ -1013,70 +1016,227 @@ function getQuickFix(diagnostic: Diagnostic, title: string, range: Range, replac
 	return codeAction;
 }
 
+enum SyntaxType {
+	ImportModule,     // from
+	ImportKeyword,    // from <moduleName>
+	ImportFunction,   // from <moduleName> import
+	ImportFunctionP,  // from <moduleName> import ( ... )	
+	FunctionDecl,     // between "func" and ":"
+	Function,         // between ":" and "end"
+	Base              // file level
+}
+
 // This handler provides the initial list of the completion items.
 connection.onCompletion(
 	async (textDocPositionParams: TextDocumentPositionParams): Promise<CompletionItem[]> => {
-		let completionItems: CompletionItem[] = [];
+		const completionItems: CompletionItem[] = [];
 
-		let textDocumentFromURI = documents.get(textDocPositionParams.textDocument.uri)
-		if (textDocumentFromURI != null) {
-			let importStatement = getImportAroundPosition(textDocPositionParams.position, textDocumentFromURI);
-			if (importStatement === undefined) {
-				// return empty since it's not an import statement that we can help with
+		const textDocumentFromURI = documents.get(textDocPositionParams.textDocument.uri);
+		// Recommandations change depending on the highlightingCompiler
+		const { highlightingCompiler } = await getDocumentSettings(textDocPositionParams.textDocument.uri);
+
+		let compiler = highlightingCompiler;
+		if (compiler == "autodetect") {
+			// If highlighting compiler is autodetect, read the first line of the file and check if it
+			// is %lang starknet
+			compiler = textDocumentFromURI?.getText({
+				start: { character: 0, line: 0 },
+				end: { character: 0, line: 1 }
+			}).startsWith("%lang starknet")
+				? "starknet"
+				: "cairo";
+		}
+
+		// If couldn't fetch the text, return empty list
+		if (textDocumentFromURI == null)
+			return completionItems;
+
+		const position = textDocPositionParams.position;
+		const syntaxType = getSyntaxType(position, textDocumentFromURI);
+
+		switch (syntaxType) {
+			case SyntaxType.Base:
+				return compiler == "starknet"
+					? [...BASE_LVL_KEYWORDS, ...BASE_STARKNET_KEYWORDS]
+					: BASE_LVL_KEYWORDS;
+
+			case SyntaxType.Function:
+				return FUNC_LVL_KEYWORDS;
+
+			case SyntaxType.ImportModule: {
+				const textAroundCursor = getTextAroundCursor(position, textDocumentFromURI);
+				if (textAroundCursor == undefined)
+					return completionItems;
+				const { textBeforeCursor, textAfterCursor } = textAroundCursor;
+
+				const packages = await getAllCairoFilesStartingWith(
+					textDocPositionParams.textDocument.uri, textBeforeCursor);
+
+				for (const packageString of packages) {
+					completionItems.push(getNewCompletionItem(textDocPositionParams, packageString, packageString, 0, textBeforeCursor, textAfterCursor));
+				}
 				return completionItems;
 			}
-			switch(importStatement.importType) { 
-				case ImportType.Module: { 
-					const packages = await getAllCairoFilesStartingWith(textDocPositionParams.textDocument.uri, importStatement.textBeforeCursor);
-					for (const packageString of packages) {
-						completionItems.push(getNewCompletionItem(textDocPositionParams, packageString, packageString, 0, importStatement.textBeforeCursor, importStatement.textAfterCursor));
-					}
-					break; 
-				} 
-				case ImportType.ImportKeyword: { 
-					completionItems.push(getNewCompletionItem(textDocPositionParams, "import", "import", 0, importStatement.textBeforeCursor, importStatement.textAfterCursor));
-					break; 
-				} 
-				case ImportType.Function: { 
-					await initPackageSearchPaths(textDocPositionParams.textDocument.uri);
 
-					let moduleName = getModuleNameFromImportPosition(textDocPositionParams, textDocumentFromURI);
+			case SyntaxType.ImportKeyword: {
+				const textAroundCursor = getTextAroundCursor(position, textDocumentFromURI);
+				if (textAroundCursor == undefined)
+					return completionItems;
+				const { textBeforeCursor, textAfterCursor } = textAroundCursor;
 
-					let { modulePath } = getModuleURI(moduleName);
-						
-					// Get function location
-					let moduleContents : string = fs.readFileSync(modulePath, 'utf8');
-					let lines = moduleContents.split('\n');
-					let importItems: Set<string> = new Set<string>(); // keep a set of unique entries
-					for (var i = 0; i < lines.length; i++) {
-						let line: string = lines[i].trim();
-						if (line.length == 0 || line.startsWith("#")) { // ignore whitespace or comments
-							continue;
-						}
-						const FUNC = "func";
-						const STRUCT = "struct";
-						const NAMESPACE = "namespace";
-						const isFunction = line.startsWith(FUNC) && line.length > FUNC.length+1 && line.charAt(FUNC.length).match(/\s/);
-						const isStruct = line.startsWith(STRUCT) && line.length > STRUCT.length+1 && line.charAt(STRUCT.length).match(/\s/);
-						const isNamespace = line.startsWith(NAMESPACE) && line.length > NAMESPACE.length+1 && line.charAt(NAMESPACE.length).match(/\s/);
-						if (isFunction || isStruct || isNamespace) {
-							let importItem = line.split(/[\s{(:]+/)[1];
-							importItems.add(importItem);
-						}				
-					}
-					for (let i of importItems) {
-						completionItems.push(getNewCompletionItem(textDocPositionParams, i, i, 0, importStatement.textBeforeCursor, importStatement.textAfterCursor));
-					}
-					break; 
-				} 
-				default: { 
-				   break; 
-				} 
-			 } 
+				completionItems.push(getNewCompletionItem(textDocPositionParams, "import", "import", 0, textBeforeCursor, textAfterCursor));
+				return completionItems;
+			}
+
+			case SyntaxType.FunctionDecl: {
+				return [];
+			}
+
+			case SyntaxType.ImportFunction: {
+				const textAroundCursor = getTextAroundCursor(position, textDocumentFromURI);
+				if (textAroundCursor == undefined)
+					return completionItems;
+				const { textBeforeCursor, textAfterCursor } = textAroundCursor;
+
+				await initPackageSearchPaths(textDocPositionParams.textDocument.uri);
+
+				let moduleName = getModuleNameFromImportPosition(textDocPositionParams, textDocumentFromURI);
+				const importItems = getModuleFunctions(moduleName);
+				for (let i of importItems) {
+					completionItems.push(getNewCompletionItem(textDocPositionParams, i, i, 0, textBeforeCursor, textAfterCursor));
+				}
+				return completionItems;
+			}
+
+			case SyntaxType.ImportFunctionP: {
+				// Since there are multiple lines involved, the way we'll get the module name will differ
+				const fileStart = { line: 0, character: 0 };
+				const cursorPosition = { line: position.line, character: position.character };
+
+				// Match the text until cursor to the regex, afterwards get the 1st group
+				const importFunctionRegex = /^from[ \t]+([a-zA-Z0-9._]+)[ \t]+import[ \t]*\((?![\s\S]*\))/m
+				const textUpToCursor = textDocumentFromURI.getText({ start: fileStart, end: cursorPosition });
+
+				const moduleName = textUpToCursor.match(importFunctionRegex)?.[1];
+				if (moduleName == undefined) {
+					connection.console.log("Couldn't find moduleName, got " + moduleName);
+					return completionItems;
+				}
+
+				const importItems = getModuleFunctions(moduleName);
+				for (const item of importItems) {
+					// Since I match the module name by reading from top of the file, it'd be harder to find
+					// start and end indices of each occurence. Default values of CompletionItem should be 
+					// enough anyways
+					completionItems.push({
+						label: item,
+						kind: CompletionItemKind.Module,
+						sortText: String(0)
+					});
+				}
+				return completionItems;
+			}
 		}
-		return completionItems;
+
 	}
 );
+
+/**
+ * @summary Gets text before and after the cursor ( on the same line )
+ * @param position 
+ * @param textDocumentFromURI 
+ * @returns Text before and after the cursor position | undefined
+ */
+ function getTextAroundCursor(position: Position, textDocumentFromURI: TextDocument) {
+	const startOfLine = {
+		line: position.line,
+		character: 0
+	};
+	const cursorPosition = {
+		line: position.line,
+		character: position.character
+	};
+	const nextLine = {
+		line: position.line + 1,
+		character: 0,
+	};
+
+	const lineUpToCursor = textDocumentFromURI.getText({ start: startOfLine, end: cursorPosition });
+	const lineUpToCursorSplit = lineUpToCursor.split(/\s+/);
+	if (lineUpToCursorSplit?.[0] === undefined)
+		return undefined
+
+	const textBeforeCursor = lineUpToCursorSplit[lineUpToCursorSplit.length - 1];
+
+	const textAfterCursor = textDocumentFromURI
+		.getText({ start: cursorPosition, end: nextLine })?.split(/\s+/)[0];
+
+	return { textBeforeCursor, textAfterCursor };
+}
+
+/**
+ * @summary Infers the type of the syntax the cursor is pointing at
+ * @param position 
+ * @param textDocumentFromURI 
+ * @returns SyntaxType of the current location
+ */
+ function getSyntaxType(position: Position, textDocumentFromURI: TextDocument): SyntaxType {
+	const fileStart = { line: 0, character: 0 };
+	const lineStart = { line: position.line, character: 0 };
+	const cursorPosition = { line: position.line, character: position.character };
+
+	// Get text from the start of the document to position of the cursor
+	// This might be too exhaustive on a large file, should change if there's a better way to 
+	// determine if we're inside a function/from statement etc.
+	const textUpToCursor = textDocumentFromURI.getText({ start: fileStart, end: cursorPosition });
+	const textOnLine = textDocumentFromURI.getText({ start: lineStart, end: cursorPosition });
+
+	// Line based checks
+	// from
+	if (textOnLine.trimLeft().trimRight() === "from")
+		return SyntaxType.ImportModule;
+
+	// from module
+	if (textOnLine.trimLeft().startsWith("from") && !textOnLine.includes("import"))
+		return SyntaxType.ImportKeyword;
+
+	// from module import
+	if (textOnLine.trimLeft().startsWith("from") && textOnLine.includes("import"))
+		return SyntaxType.ImportFunction;
+
+
+	// Now that we don't have a one-line syntax, we'll check for scopes. This means we'll iterate
+	// over the file line by one and see where in the syntax we end up with
+	// Note that this is a long way to check where we are in file. Should be replaced with a faster 
+	// method if there is any
+	const reducedType = textUpToCursor.split('\n').reduce((lastType, line) => {
+		if (line.trimLeft().trimRight() == "end") {
+			return SyntaxType.Base;
+		}
+
+		if (line.trimLeft().startsWith("func") && !line.includes(":")) {
+			return SyntaxType.FunctionDecl;
+		}
+
+		// This wouldn't work too well with implicit arguments but since we don't
+		// have a list of suggestions yet, I skip them
+		if (lastType === SyntaxType.FunctionDecl && line.trimRight().endsWith(":")) {
+			return SyntaxType.Function;
+		}
+
+		if (line.trimLeft().startsWith("from") && line.includes("(")) {
+			return SyntaxType.ImportFunctionP;
+		}
+
+		if (lastType === SyntaxType.ImportFunctionP && line.includes(")")) {
+			return SyntaxType.Base;
+		}
+
+		return lastType;
+	}, SyntaxType.Base)
+
+	return reducedType;
+}
 
 function getModuleNameFromImportPosition(textDocPositionParams: TextDocumentPositionParams, textDocumentFromURI: TextDocument) {
 	let startOfLine = {
@@ -1091,6 +1251,40 @@ function getModuleNameFromImportPosition(textDocPositionParams: TextDocumentPosi
 	let moduleName = lineUpToCursor.split(/\s+/)[1];
 	connection.console.log(`Module: ${moduleName}`);
 	return moduleName;
+}
+
+/**
+ * @summary Reads a module and extracts a set of its functions
+ * @param moduleName 
+ * @returns Set of functions of the module 
+ */
+ function getModuleFunctions(moduleName: string): Set<string> {
+	console.log(moduleName)
+	const { modulePath } = getModuleURI(moduleName);
+	console.log(modulePath);
+
+	// Get function location from the module
+	let moduleContents: string = fs.readFileSync(modulePath, 'utf8');
+	let lines = moduleContents.split('\n');
+	let importItems: Set<string> = new Set<string>(); // keep a set of unique entries
+	for (var i = 0; i < lines.length; i++) {
+		let line: string = lines[i].trim();
+		if (line.length == 0 || line.startsWith("#")) { // ignore whitespace or comments
+			continue;
+		}
+		const FUNC = "func";
+		const STRUCT = "struct";
+		const NAMESPACE = "namespace";
+		const isFunction = line.startsWith(FUNC) && line.length > FUNC.length + 1 && line.charAt(FUNC.length).match(/\s/);
+		const isStruct = line.startsWith(STRUCT) && line.length > STRUCT.length + 1 && line.charAt(STRUCT.length).match(/\s/);
+		const isNamespace = line.startsWith(NAMESPACE) && line.length > NAMESPACE.length + 1 && line.charAt(NAMESPACE.length).match(/\s/);
+		if (isFunction || isStruct || isNamespace) {
+			let importItem = line.split(/[\s{(:]+/)[1];
+			importItems.add(importItem);
+		}
+	}
+
+	return importItems;
 }
 
 function isFolder(dirPath: string) {
