@@ -1,5 +1,9 @@
 # Change Log
 
+## 0.0.24
+
+- Context aware suggestions ([#28](https://github.com/ericglau/cairo-ls/pull/28))
+
 ## 0.0.23
 
 - Go to definitions for functions in namespaces
