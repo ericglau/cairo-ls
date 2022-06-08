@@ -29,7 +29,6 @@ import {
 	Hover,
 	Position,
 	LocationLink,
-	Definition
 } from 'vscode-languageserver';
 
 import {
@@ -445,6 +444,7 @@ interface CairoLSSettings {
 	venvCommand: string;
 	nileUseVenv: boolean;
 	nileVenvCommand: string;
+	disableHintValidation?: string;
 	sourceDir?: string;
 }
 
@@ -455,7 +455,7 @@ const DEFAULT_VENV_COMMAND = ". ~/cairo_venv/bin/activate";
 const DEFAULT_NILE_USE_VENV = true;
 const DEFAULT_NILE_VENV_COMMAND = ". env/bin/activate";
 
-let defaultSettings: CairoLSSettings = { highlightingCompiler: DEFAULT_HIGHLIGHTING_COMPILER, maxNumberOfProblems: DEFAULT_MAX_PROBLEMS, useVenv: DEFAULT_USE_VENV, venvCommand: DEFAULT_VENV_COMMAND, nileUseVenv: DEFAULT_NILE_USE_VENV, nileVenvCommand: DEFAULT_NILE_VENV_COMMAND, sourceDir: undefined };
+let defaultSettings: CairoLSSettings = { highlightingCompiler: DEFAULT_HIGHLIGHTING_COMPILER, maxNumberOfProblems: DEFAULT_MAX_PROBLEMS, useVenv: DEFAULT_USE_VENV, venvCommand: DEFAULT_VENV_COMMAND, nileUseVenv: DEFAULT_NILE_USE_VENV, nileVenvCommand: DEFAULT_NILE_VENV_COMMAND, sourceDir: undefined, disableHintValidation: undefined };
 let globalSettings: CairoLSSettings = defaultSettings;
 
 // Cache the settings of all open documents
@@ -643,6 +643,7 @@ async function validateTextDocument(textDocument: TextDocument): Promise<void> {
 	});
 
 	var commandPrefix = getCommandPrefix(settings);
+	console.log("URI: " + textDocument.uri);
 
 	await exec(commandPrefix + "cd " + tempFolder + " && " + getCompileCommand(settings, tempFiles, textDocumentContents), (error: { message: any; }, stdout: any, stderr: any) => {
 		// delete temp files
@@ -782,7 +783,7 @@ function getPythonPackageDir(basePath: string) {
  * @param textDocumentContents The current document contents.
  * @returns The Cairo or StarkNet compile command.
  */
-function getCompileCommand(settings: CairoLSSettings, tempFiles: TempFiles, textDocumentContents?: string): string {
+function getCompileCommand(settings: CairoLSSettings, tempFiles: TempFiles, textDocumentContents?: string, disableHintValidation: boolean=false): string {
 	let cairoPathParam = "";
 
 	const sourceDir = settings.sourceDir;
@@ -798,7 +799,12 @@ function getCompileCommand(settings: CairoLSSettings, tempFiles: TempFiles, text
 		cairoPathParam += ' ';
 	}
 	const CAIRO_COMPILE_COMMAND = "cairo-compile " + cairoPathParam + tempFiles.sourcePath + " --output " + tempFiles.outputName;
-	const STARKNET_COMPILE_COMMAND = "starknet-compile " + cairoPathParam + tempFiles.sourcePath + " --output " + tempFiles.outputName;
+	console.log("SRC-PATTH: " + tempFiles.sourcePath);
+	let STARKNET_COMPILE_COMMAND = "starknet-compile " + cairoPathParam + tempFiles.sourcePath + " --output " + tempFiles.outputName;
+
+	if (settings.disableHintValidation) {
+		STARKNET_COMPILE_COMMAND += " --disable_hint_validation"
+	}
 
 	var compiler = settings.highlightingCompiler;
 	if (compiler === "starknet") {
@@ -1314,6 +1320,52 @@ function isFolder(dirPath: string) {
  * @param prefix package path prefix
  * @returns string array
  */
+async function getAllCairoFilesStartingWith(uri: string, prefix: string) : Promise<string[]> {
+	await initPackageSearchPaths(uri);
+	
+	let result: string[] = [];
+	
+	// TODO get modules relative to folders in actual CAIRO_PATH as well
+	let packageSearchPathsArray = packageSearchPaths.split(';');
+
+	for (let searchPath of packageSearchPathsArray) {
+
+		connection.console.log(`For search path: ${searchPath}`);
+
+		const lastDotIndex = prefix.lastIndexOf('.');
+		const parentFolderOfPrefix = prefix.substring(0, lastDotIndex);
+		const parentFolderAsPath = parentFolderOfPrefix.split('.').join('/');
+
+		let possibleImportFolder = path.join(searchPath, parentFolderAsPath);
+		connection.console.log(`Possible import folder: ${possibleImportFolder}`);
+
+		let cairoFileAbsPaths: string[] = glob.sync(possibleImportFolder + "/**/*.cairo");
+
+		// convert absolute paths to import style paths
+		for (let fileFullPath of cairoFileAbsPaths) {
+			const withoutFileExtension = fileFullPath.substring(0, fileFullPath.lastIndexOf(".cairo"));
+			const relativePathWithoutExt = relativize(withoutFileExtension, searchPath);
+
+			if (isPartOfAnotherSearchPath(fileFullPath, searchPath, packageSearchPathsArray)) {
+			 	connection.console.log(`Skipping path since it is part of another search path: ${relativePathWithoutExt}`);
+			} else if (relativePathWithoutExt.includes('.')) {
+				// filter out paths that have "." since those are not proper cairo paths
+				// e.g. "cairo-contracts/env/lib/python3.9/site-packages/starkware/cairo/common/bitwise" is part of a venv, not really a contract path in the current search path
+				connection.console.log(`Skipping path since it's not a valid cairo path: ${relativePathWithoutExt}`);
+			} else if (fileFullPath.includes('site-packages/nile/base_project')) {
+				connection.console.log(`Skipping nile base project: ${relativePathWithoutExt}`);
+			} else {
+				connection.console.log(`Adding package path for cairo file: ${relativePathWithoutExt}`);
+				result.push(convertPathToImport(relativePathWithoutExt));	
+			}
+		}
+	}
+	
+	connection.console.log(`Found ${result.length} cairo files:`);
+
+	return result;
+}
+
 async function getAllCairoFilesStartingWith(uri: string, prefix: string) : Promise<string[]> {
 	await initPackageSearchPaths(uri);
 	
