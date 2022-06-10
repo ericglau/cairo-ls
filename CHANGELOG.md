@@ -1,5 +1,9 @@
 # Change Log
 
+## 0.0.25
+
+- Support config to disable hint validation for specific file patterns ([#34](https://github.com/ericglau/cairo-ls/pull/34))
+
 ## 0.0.24
 
 - Context aware suggestions ([#28](https://github.com/ericglau/cairo-ls/pull/28))
