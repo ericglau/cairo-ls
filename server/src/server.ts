@@ -29,7 +29,6 @@ import {
 	Hover,
 	Position,
 	LocationLink,
-	Definition
 } from 'vscode-languageserver';
 
 import {
@@ -445,6 +444,7 @@ interface CairoLSSettings {
 	venvCommand: string;
 	nileUseVenv: boolean;
 	nileVenvCommand: string;
+	disableHintValidation?: string;
 	sourceDir?: string;
 }
 
@@ -455,7 +455,7 @@ const DEFAULT_VENV_COMMAND = ". ~/cairo_venv/bin/activate";
 const DEFAULT_NILE_USE_VENV = true;
 const DEFAULT_NILE_VENV_COMMAND = ". env/bin/activate";
 
-let defaultSettings: CairoLSSettings = { highlightingCompiler: DEFAULT_HIGHLIGHTING_COMPILER, maxNumberOfProblems: DEFAULT_MAX_PROBLEMS, useVenv: DEFAULT_USE_VENV, venvCommand: DEFAULT_VENV_COMMAND, nileUseVenv: DEFAULT_NILE_USE_VENV, nileVenvCommand: DEFAULT_NILE_VENV_COMMAND, sourceDir: undefined };
+let defaultSettings: CairoLSSettings = { highlightingCompiler: DEFAULT_HIGHLIGHTING_COMPILER, maxNumberOfProblems: DEFAULT_MAX_PROBLEMS, useVenv: DEFAULT_USE_VENV, venvCommand: DEFAULT_VENV_COMMAND, nileUseVenv: DEFAULT_NILE_USE_VENV, nileVenvCommand: DEFAULT_NILE_VENV_COMMAND, sourceDir: undefined, disableHintValidation: undefined };
 let globalSettings: CairoLSSettings = defaultSettings;
 
 // Cache the settings of all open documents
@@ -643,8 +643,13 @@ async function validateTextDocument(textDocument: TextDocument): Promise<void> {
 	});
 
 	var commandPrefix = getCommandPrefix(settings);
+	let disableHintValidation = false;
+	if (settings.disableHintValidation) {
+		const disabled = glob.sync(settings.disableHintValidation).map((v: string) => { return "file://" + path.resolve(v) });
+		disableHintValidation = disabled.some((v: string) => v == textDocument.uri);
+	}
 
-	await exec(commandPrefix + "cd " + tempFolder + " && " + getCompileCommand(settings, tempFiles, textDocumentContents), (error: { message: any; }, stdout: any, stderr: any) => {
+	await exec(commandPrefix + "cd " + tempFolder + " && " + getCompileCommand(settings, tempFiles, textDocumentContents, disableHintValidation), (error: { message: any; }, stdout: any, stderr: any) => {
 		// delete temp files
 		deleteTempFile(tempFiles.sourcePath);
 		deleteTempFile(tempFiles.outputPath);
@@ -782,7 +787,7 @@ function getPythonPackageDir(basePath: string) {
  * @param textDocumentContents The current document contents.
  * @returns The Cairo or StarkNet compile command.
  */
-function getCompileCommand(settings: CairoLSSettings, tempFiles: TempFiles, textDocumentContents?: string): string {
+function getCompileCommand(settings: CairoLSSettings, tempFiles: TempFiles, textDocumentContents?: string, disableHintValidation: boolean=false): string {
 	let cairoPathParam = "";
 
 	const sourceDir = settings.sourceDir;
@@ -798,7 +803,11 @@ function getCompileCommand(settings: CairoLSSettings, tempFiles: TempFiles, text
 		cairoPathParam += ' ';
 	}
 	const CAIRO_COMPILE_COMMAND = "cairo-compile " + cairoPathParam + tempFiles.sourcePath + " --output " + tempFiles.outputName;
-	const STARKNET_COMPILE_COMMAND = "starknet-compile " + cairoPathParam + tempFiles.sourcePath + " --output " + tempFiles.outputName;
+	let STARKNET_COMPILE_COMMAND = "starknet-compile " + cairoPathParam + tempFiles.sourcePath + " --output " + tempFiles.outputName;
+
+	if (disableHintValidation) {
+		STARKNET_COMPILE_COMMAND += " --disable_hint_validation"
+	}
 
 	var compiler = settings.highlightingCompiler;
 	if (compiler === "starknet") {
