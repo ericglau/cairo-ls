@@ -6,8 +6,6 @@ Works with any IDE or text editor that supports the [Language Server Protocol](h
 
 **Note**: This is an early preview release and is still in active development.
 
-https://www.npmjs.com/package/cairo-ls
-
 ![](images/codecomplete.gif)
 
 ## Features
@@ -29,6 +27,8 @@ https://www.npmjs.com/package/cairo-ls
 [Vim setup instructions](VIM.md)
 
 ### How to use with other IDEs
+
+[Language server](https://www.npmjs.com/package/cairo-ls)
 
 1. In an empty directory, run the following to install the language server:
 ```
