@@ -57,7 +57,7 @@
 				"cairols.disableHintValidation": {
 					"scope": "resource",
 					"type": "string",
-					"description": "Disables hint validation for selected files"
+					"description": "Disables hint validation for files that match the given pattern, for example: tests/**/*.cairo"
 				},
 				"cairols.useVenv": {
 					"scope": "resource",
