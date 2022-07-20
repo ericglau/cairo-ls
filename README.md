@@ -1,5 +1,7 @@
 # Cairo Language Server
 
+[![VS Code](https://img.shields.io/visual-studio-marketplace/i/ericglau.cairo-ls?label=VS%20Code)](https://marketplace.visualstudio.com/items?itemName=ericglau.cairo-ls) [![vim/nvim](https://img.shields.io/npm/dt/coc-cairo?label=vim%2Fnvim)](https://github.com/kevinhalliday/coc-cairo) [![LSP](https://img.shields.io/npm/dt/cairo-ls?label=LSP)](https://www.npmjs.com/package/cairo-ls) 
+
 Code assistance for writing [Cairo](https://www.cairo-lang.org/) smart contracts for StarkNet.
 
 Works with any IDE or text editor that supports the [Language Server Protocol](https://microsoft.github.io/language-server-protocol/).
@@ -20,15 +22,15 @@ Works with any IDE or text editor that supports the [Language Server Protocol](h
 
 ### VS Code
 
-[Cairo language support extension](https://marketplace.visualstudio.com/items?itemName=ericglau.cairo-ls)
+[**VS Code extension**](https://marketplace.visualstudio.com/items?itemName=ericglau.cairo-ls)
 
 ### Vim
 
-[Vim setup instructions](VIM.md)
+[**CoC extension**](https://github.com/kevinhalliday/coc-cairo)  
 
 ### How to use with other IDEs
 
-[Language server](https://www.npmjs.com/package/cairo-ls)
+[**Language server**](https://www.npmjs.com/package/cairo-ls)
 
 1. In an empty directory, run the following to install the language server:
 ```
