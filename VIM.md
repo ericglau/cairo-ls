@@ -22,8 +22,16 @@ Makes use of the [Cairo Language Server](https://github.com/ericglau/cairo-ls).
 
 2. Install [coc-cairo](https://github.com/kevinhalliday/coc-cairo)
 
-3. Install Nile by following its [Getting started](https://github.com/OpenZeppelin/nile#getting-started) steps, or follow the [Cairo environment setup steps](https://www.cairo-lang.org/docs/quickstart.html).
+3. Add the following to `~/.vimrc`
+```
+au BufReadPost *.cairo set filetype=cairo
+au Filetype cairo set syntax=cairo
+```
 
-4. For syntax highlighting, download https://github.com/starkware-libs/cairo-lang/blob/master/src/starkware/cairo/lang/ide/vim/syntax/cairo.vim to `~/.vim/syntax/`
+4. Add [Coc's example Vim configuration](https://github.com/neoclide/coc.nvim#example-vim-configuration) to `~/.vimrc`
 
-5. Use Vim to open a `.cairo` file.
+5. Install Nile by following its [Getting started](https://github.com/OpenZeppelin/nile#getting-started) steps, or follow the [Cairo environment setup steps](https://www.cairo-lang.org/docs/quickstart.html).
+
+6. For syntax highlighting, download https://github.com/starkware-libs/cairo-lang/blob/master/src/starkware/cairo/lang/ide/vim/syntax/cairo.vim to `~/.vim/syntax/`
+
+7. Use Vim to open a `.cairo` file.
