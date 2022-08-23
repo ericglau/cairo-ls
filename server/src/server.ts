@@ -446,6 +446,7 @@ interface CairoLSSettings {
 	nileVenvCommand: string;
 	disableHintValidation?: string;
 	sourceDir?: string;
+	cairoPath: Array<string>;
 }
 
 const DEFAULT_HIGHLIGHTING_COMPILER = "autodetect";
@@ -455,7 +456,7 @@ const DEFAULT_VENV_COMMAND = ". ~/cairo_venv/bin/activate";
 const DEFAULT_NILE_USE_VENV = true;
 const DEFAULT_NILE_VENV_COMMAND = ". env/bin/activate";
 
-let defaultSettings: CairoLSSettings = { highlightingCompiler: DEFAULT_HIGHLIGHTING_COMPILER, maxNumberOfProblems: DEFAULT_MAX_PROBLEMS, useVenv: DEFAULT_USE_VENV, venvCommand: DEFAULT_VENV_COMMAND, nileUseVenv: DEFAULT_NILE_USE_VENV, nileVenvCommand: DEFAULT_NILE_VENV_COMMAND, sourceDir: undefined, disableHintValidation: undefined };
+let defaultSettings: CairoLSSettings = { highlightingCompiler: DEFAULT_HIGHLIGHTING_COMPILER, maxNumberOfProblems: DEFAULT_MAX_PROBLEMS, useVenv: DEFAULT_USE_VENV, venvCommand: DEFAULT_VENV_COMMAND, nileUseVenv: DEFAULT_NILE_USE_VENV, nileVenvCommand: DEFAULT_NILE_VENV_COMMAND, sourceDir: undefined, disableHintValidation: undefined, cairoPath: [] };
 let globalSettings: CairoLSSettings = defaultSettings;
 
 // Cache the settings of all open documents
@@ -791,17 +792,27 @@ function getCompileCommand(settings: CairoLSSettings, tempFiles: TempFiles, text
 	let cairoPathParam = "";
 
 	const sourceDir = settings.sourceDir;
+	const cairoPath = settings.cairoPath;
 
-	if (workspaceFolders.length > 0) {
+	if (workspaceFolders.length > 0 || cairoPath.length > 0) {
 		cairoPathParam = '--cairo_path=';
-		for (i = 0; i < workspaceFolders.length; i++) {
-			cairoPathParam += appendSourceDir(workspaceFolders[i], sourceDir);
+
+		for (i = 0; i < cairoPath.length; i++) {
+			cairoPathParam += cairoPath[i]
+
 			if (i < workspaceFolders.length - 1) {
 				cairoPathParam += ':';
 			}
 		}
+
+		for (i = 0; i < workspaceFolders.length; i++) {
+			cairoPathParam += ':';
+			cairoPathParam += appendSourceDir(workspaceFolders[i], sourceDir);
+		}
+
 		cairoPathParam += ' ';
 	}
+
 	const CAIRO_COMPILE_COMMAND = "cairo-compile " + cairoPathParam + tempFiles.sourcePath + " --output " + tempFiles.outputName;
 	let STARKNET_COMPILE_COMMAND = "starknet-compile " + cairoPathParam + tempFiles.sourcePath + " --output " + tempFiles.outputName;
 
@@ -1392,8 +1403,15 @@ async function initPackageSearchPaths(uri: string) {
 
 		const settings = await getDocumentSettings(uri);
 		const sourceDir = settings.sourceDir;
+		const cairoPath = settings.cairoPath;
 
 		packageSearchPaths = '';
+
+		for (let i = 0; i < cairoPath.length; i++) {
+			packageSearchPaths += cairoPath[i];
+		}
+
+
 		for (let i = 0; i < workspaceFolders.length; i++) {
 			packageSearchPaths += appendSourceDir(workspaceFolders[i], sourceDir) + ';';
 		}
