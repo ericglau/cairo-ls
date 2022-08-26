@@ -800,14 +800,17 @@ function getCompileCommand(settings: CairoLSSettings, tempFiles: TempFiles, text
 		for (i = 0; i < cairoPath.length; i++) {
 			cairoPathParam += cairoPath[i]
 
-			if (i < workspaceFolders.length - 1) {
+			if (i < cairoPath.length - 1) {
 				cairoPathParam += ':';
 			}
 		}
 
 		for (i = 0; i < workspaceFolders.length; i++) {
-			cairoPathParam += ':';
 			cairoPathParam += appendSourceDir(workspaceFolders[i], sourceDir);
+
+			if (i < workspaceFolders.length - 1) {
+				cairoPathParam += ':';
+			}
 		}
 
 		cairoPathParam += ' ';
@@ -1408,7 +1411,7 @@ async function initPackageSearchPaths(uri: string) {
 		packageSearchPaths = '';
 
 		for (let i = 0; i < cairoPath.length; i++) {
-			packageSearchPaths += cairoPath[i];
+			packageSearchPaths += cairoPath[i] + ';';
 		}
 
 

@@ -87,7 +87,7 @@
 					"scope": "resource",
 					"type": "array",
 					"default": [],
-					"description": "Additional locations to search for cairo files"
+					"description": "Additional locations to search for cairo files."
 				}
 			}
 		},
