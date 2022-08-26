@@ -789,32 +789,11 @@ function getPythonPackageDir(basePath: string) {
  * @returns The Cairo or StarkNet compile command.
  */
 function getCompileCommand(settings: CairoLSSettings, tempFiles: TempFiles, textDocumentContents?: string, disableHintValidation: boolean=false): string {
-	let cairoPathParam = "";
-
 	const sourceDir = settings.sourceDir;
 	const cairoPath = settings.cairoPath;
 
-	if (workspaceFolders.length > 0 || cairoPath.length > 0) {
-		cairoPathParam = '--cairo_path=';
-
-		for (i = 0; i < cairoPath.length; i++) {
-			cairoPathParam += cairoPath[i];
-
-			if (i < cairoPath.length - 1) {
-				cairoPathParam += ':';
-			}
-		}
-
-		for (i = 0; i < workspaceFolders.length; i++) {
-			cairoPathParam += appendSourceDir(workspaceFolders[i], sourceDir);
-
-			if (i < workspaceFolders.length - 1) {
-				cairoPathParam += ':';
-			}
-		}
-
-		cairoPathParam += ' ';
-	}
+	const paths = getCairoPaths(sourceDir, cairoPath);
+	const cairoPathParam = getCairoPathParam(paths);
 
 	const CAIRO_COMPILE_COMMAND = "cairo-compile " + cairoPathParam + tempFiles.sourcePath + " --output " + tempFiles.outputName;
 	let STARKNET_COMPILE_COMMAND = "starknet-compile " + cairoPathParam + tempFiles.sourcePath + " --output " + tempFiles.outputName;
@@ -857,6 +836,49 @@ function getCompileCommand(settings: CairoLSSettings, tempFiles: TempFiles, text
 		return CAIRO_COMPILE_COMMAND;
 	}
 
+}
+
+/**
+ * Gets the cairo paths based on the workspace folders and any configured additonal paths.
+ * 
+ * @param sourceDir The sourceDir from settings
+ * @param cairoPath The cairoPath from settings
+ * @returns Array of cairo paths based on the workspace folders and any configured additonal paths.
+ */
+function getCairoPaths(sourceDir: string | undefined, cairoPath: string[]) {
+	const paths: string[] = [];
+	workspaceFolders.forEach(function (e) {
+		paths.push(appendSourceDir(e, sourceDir));
+	});
+	cairoPath.forEach(function (e) {
+		paths.push(e);
+	});
+	return paths;
+}
+
+/**
+ * Gets the cairo_path parameter for the cairo compilation command.
+ * 
+ * @param paths Array of paths to add to the cairo_path command.
+ * @return Cairo path parameter, or empty string if not needed.
+ */
+function getCairoPathParam(paths: string[]) {
+	let result = '';
+	if (paths.length > 0) {
+		result += '--cairo_path="';
+
+		for (let i = 0; i < paths.length; i++) {
+			result += paths[i];
+	
+			if (i < paths.length - 1) {
+				result += ':';
+			} else {
+				result += '"';
+			}
+		}
+		result += ' ';
+	}
+	return result;
 }
 
 connection.onDidChangeWatchedFiles(_change => {
@@ -1413,8 +1435,6 @@ async function initPackageSearchPaths(uri: string) {
 		for (let i = 0; i < cairoPath.length; i++) {
 			packageSearchPaths += cairoPath[i] + ';';
 		}
-
-
 		for (let i = 0; i < workspaceFolders.length; i++) {
 			packageSearchPaths += appendSourceDir(workspaceFolders[i], sourceDir) + ';';
 		}
