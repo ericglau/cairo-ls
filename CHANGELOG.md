@@ -1,5 +1,9 @@
 # Change Log
 
+## 0.0.26
+
+- Support adding custom Cairo paths in settings. ([#41](https://github.com/ericglau/cairo-ls/pull/41))
+
 ## 0.0.25
 
 - Support config to disable hint validation for specific file patterns ([#34](https://github.com/ericglau/cairo-ls/pull/34))

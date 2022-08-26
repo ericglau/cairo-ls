@@ -4,7 +4,7 @@
 	"description": "Cairo language support for StarkNet in VS Code",
 	"author": "Eric Lau",
 	"license": "EPL-2.0",
-	"version": "0.0.25",
+	"version": "0.0.26",
 	"preview": true,
 	"icon": "images/logo.png",
 	"repository": {
