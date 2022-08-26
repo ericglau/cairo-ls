@@ -798,7 +798,7 @@ function getCompileCommand(settings: CairoLSSettings, tempFiles: TempFiles, text
 		cairoPathParam = '--cairo_path=';
 
 		for (i = 0; i < cairoPath.length; i++) {
-			cairoPathParam += cairoPath[i]
+			cairoPathParam += cairoPath[i];
 
 			if (i < cairoPath.length - 1) {
 				cairoPathParam += ':';
