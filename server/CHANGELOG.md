@@ -2,7 +2,7 @@
 
 ## 0.0.9
 
-- Support Cairo 0.10
+- Support Cairo 0.10.0
 
 ## 0.0.8
 
