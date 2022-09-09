@@ -224,7 +224,7 @@ end
 	let withinImportModule: string | undefined;
 	for (var i = 0; i < lines.length; i++) {
 		var line: string = lines[i].trim();
-		if (line.length == 0 || line.startsWith("#")) { // ignore whitespace or comments
+		if (line.length == 0 || line.startsWith("//")) { // ignore whitespace or comments
 			continue;
 		}
 		if (line.startsWith("from")) {
@@ -311,7 +311,7 @@ end
 				let context: ParsingContext | undefined;
 				for (var i = 0; i < lines.length; i++) {
 					let line: string = lines[i].trim();
-					if (line.length == 0 || line.startsWith("#")) { // ignore whitespace or comments
+					if (line.length == 0 || line.startsWith("//")) { // ignore whitespace or comments
 						continue;
 					}
 					if (context !== undefined && context.namespace !== undefined) {
@@ -352,19 +352,19 @@ end
 					}
 
 					if (startsWith(line, 'struct')) {
-						pushDefinitionIfFound(line, importName, moduleUrl, ":", STRUCT);
+						pushDefinitionIfFound(line, importName, moduleUrl, "{", STRUCT);
 					}
 
 					if (startsWith(line, 'namespace')) {
 						// get namespace from line
-						const searchNamespace = line.substring('namespace'.length, line.lastIndexOf(':')).trim();
+						const searchNamespace = line.substring('namespace'.length, line.lastIndexOf('{')).trim();
 						context = { namespace: searchNamespace };
 						connection.console.log(`Going into namespace: ${context.namespace}`);
 	
 						const [ namespace ] = wordWithDot.split('.');
 						// if we are hovering over the namespace portion in namespace.function, add the namespace definition from the imported module
 						if (word === namespace) {
-							pushDefinitionIfFound(line, importName, moduleUrl, ":", NAMESPACE);
+							pushDefinitionIfFound(line, importName, moduleUrl, "{", NAMESPACE);
 						}
 					}
 				}
@@ -375,7 +375,7 @@ end
 		let lines = textDocumentContents.split('\n');
 		for (var i = 0; i < lines.length; i++) {
 			let line: string = lines[i].trim();
-			if (line.length == 0 || line.startsWith("#")) { // ignore whitespace or comments
+			if (line.length == 0 || line.startsWith("//")) { // ignore whitespace or comments
 				continue;
 			}
 			if (line.startsWith("func") && line.length > 5 && line.charAt(4).match(/\s/)) { // look for functions
@@ -758,7 +758,7 @@ function getPythonPackageDir(basePath: string) {
 				} else {
 					continue;
 				}
-			} else if (line.startsWith("#")) {
+			} else if (line.startsWith("//")) {
 				continue;
 			}
 			if (line === '[options.packages.find]') {
@@ -818,7 +818,7 @@ function getCompileCommand(settings: CairoLSSettings, tempFiles: TempFiles, text
 		var directivesFound: boolean = false;
 		for (var i = 0; i < lines.length; i++) {
 			var line: string = lines[i].trim();
-			if (line.length == 0 || line.startsWith("#")) { // ignore whitespace or comments
+			if (line.length == 0 || line.startsWith("//")) { // ignore whitespace or comments
 				continue;
 			}
 			if (line.startsWith("%")) {
@@ -1066,8 +1066,8 @@ enum SyntaxType {
 	ImportKeyword,    // from <moduleName>
 	ImportFunction,   // from <moduleName> import
 	ImportFunctionP,  // from <moduleName> import ( ... )	
-	FunctionDecl,     // between "func" and ":"
-	Function,         // between ":" and "end"
+	FunctionDecl,     // between "func" and "{"
+	Function,         // between "{" and "end"
 	WithAttr,		  // with_attr
 	Base              // file level
 }
@@ -1275,12 +1275,12 @@ connection.onCompletion(
 		}
 
 		// Capture function declaration
-		if (line.trimLeft().startsWith("func") && !line.includes(":")) {
+		if (line.trimLeft().startsWith("func") && !line.includes("{")) {
 			return SyntaxType.FunctionDecl;
 		}
 
 		// Capture function body
-		if (lastType === SyntaxType.FunctionDecl && line.trimRight().endsWith(":")) {
+		if (lastType === SyntaxType.FunctionDecl && line.trimRight().endsWith("{")) {
 			return SyntaxType.Function;
 		}
 
@@ -1331,7 +1331,7 @@ function getModuleNameFromImportPosition(textDocPositionParams: TextDocumentPosi
 	let importItems: Set<string> = new Set<string>(); // keep a set of unique entries
 	for (var i = 0; i < lines.length; i++) {
 		let line: string = lines[i].trim();
-		if (line.length == 0 || line.startsWith("#")) { // ignore whitespace or comments
+		if (line.length == 0 || line.startsWith("//")) { // ignore whitespace or comments
 			continue;
 		}
 		const FUNC = "func";

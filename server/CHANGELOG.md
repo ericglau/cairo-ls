@@ -1,5 +1,9 @@
 # Change Log
 
+## 0.0.9
+
+- Support Cairo 0.10
+
 ## 0.0.8
 
 - Support adding custom Cairo paths in settings. ([#41](https://github.com/ericglau/cairo-ls/pull/41))
