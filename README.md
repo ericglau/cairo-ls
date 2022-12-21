@@ -20,6 +20,9 @@ Works with any IDE or text editor that supports the [Language Server Protocol](h
 
 ## IDE support
 
+- Prerequisites:
+  - Install [node](https://nodejs.org/en/) on your local machine.
+
 ### VS Code
 
 [**VS Code extension**](https://marketplace.visualstudio.com/items?itemName=ericglau.cairo-ls)
@@ -27,6 +30,42 @@ Works with any IDE or text editor that supports the [Language Server Protocol](h
 ### Vim
 
 [**CoC extension**](https://github.com/kevinhalliday/coc-cairo) with [setup instructions](https://github.com/ericglau/cairo-ls/blob/main/VIM.md).
+
+### Helix
+
+- In the directory of your choosing, install the cairo-ls language server. I propose the following structure:
+
+- `cd && mkdir code && cd code && mkdir lsp && cd lsp`
+- `npm install cairo-ls`
+- Create a script that runs the cairo-ls entry point in `~/code/lsp`:
+  - `touch scripts/cairols.sh`
+  - `hx scripts/cairols.sh`
+  - Write the following content in the script:
+  ```bash
+  # ~/code/lsp/scripts/cairols.sh
+
+  #!/bin/bash
+  node ~/code/lsp/node_modules/cairo-ls/out/server.js --stdio
+  ```
+
+- Link this script to your $PATH, let's pretend you're using zsh as your preferred shell:
+  - `hx ~/.zshrc`
+  - Add the following line to your `.zshrc` file: `export PATH="$PATH:/Users/<YOUR_USERNAME>/code/lsp/scripts"`
+
+- You can now set up the Helix language config for Cairo. Add these lines to your `languages.toml` file in your Helix config.
+  ```toml
+  # ~/.config/helix/languages.toml
+  [[language]]
+  name = "cairo"
+  scope = "source.cairo"
+  injection-regex = "cairo"
+  file-types = ["cairo"]
+  indent = { tab-width = 2, unit = "  " }
+  comment-token = "#"
+  language-server = { command = "cairols.sh" }
+   ```
+
+If needed, you can refer to [a former issue](https://github.com/helix-editor/helix/issues/5245) on the Helix repo.
 
 ### How to use with other IDEs
 
