@@ -154,7 +154,7 @@
 	"devDependencies": {
 		"@types/mocha": "^5.2.7",
 		"@types/node": "^12.20.28",
-		"@typescript-eslint/parser": "^2.3.0",
+		"@typescript-eslint/parser": "^5.41.0",
 		"ansi-regex": ">=5.0.1",
 		"esbuild": "^0.15.5",
 		"eslint": "^7.32.0",
