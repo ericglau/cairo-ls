@@ -20,6 +20,9 @@ Works with any IDE or text editor that supports the [Language Server Protocol](h
 
 ## IDE support
 
+- Prerequisites:
+  - Install [node](https://nodejs.org/en/) on your local machine.
+
 ### VS Code
 
 [**VS Code extension**](https://marketplace.visualstudio.com/items?itemName=ericglau.cairo-ls)
@@ -27,6 +30,10 @@ Works with any IDE or text editor that supports the [Language Server Protocol](h
 ### Vim
 
 [**CoC extension**](https://github.com/kevinhalliday/coc-cairo) with [setup instructions](https://github.com/ericglau/cairo-ls/blob/main/VIM.md).
+
+### Helix
+
+[**Helix setup instructions**](HELIX.md)
 
 ### How to use with other IDEs
 
