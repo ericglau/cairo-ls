@@ -2,11 +2,11 @@
 
 [![VS Code](https://img.shields.io/visual-studio-marketplace/i/ericglau.cairo-ls?label=VS%20Code)](https://marketplace.visualstudio.com/items?itemName=ericglau.cairo-ls) [![vim/nvim](https://img.shields.io/npm/dt/coc-cairo?label=vim%2Fnvim)](https://github.com/kevinhalliday/coc-cairo) [![LSP](https://img.shields.io/npm/dt/cairo-ls?label=LSP)](https://www.npmjs.com/package/cairo-ls) 
 
+**Note: This project is deprecated in favour of [vscode-cairo](https://github.com/starkware-libs/cairo/blob/main/vscode-cairo/README.md) for Cairo 1.0.**
+
 Code assistance for writing [Cairo](https://www.cairo-lang.org/) smart contracts for StarkNet.
 
 Works with any IDE or text editor that supports the [Language Server Protocol](https://microsoft.github.io/language-server-protocol/).
-
-**Note**: This is an early preview release and is still in active development.
 
 ![](images/codecomplete.gif)
 
