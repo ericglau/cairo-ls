@@ -1,10 +1,10 @@
 # Cairo Language Server for VS Code
 
+**Note: This project is deprecated in favour of [vscode-cairo](https://github.com/starkware-libs/cairo/blob/main/vscode-cairo/README.md) for Cairo 1.0.**
+
 Code assistance when writing [Cairo](https://www.cairo-lang.org/) smart contracts for StarkNet.
 
 Makes use of the [Cairo Language Server](https://github.com/ericglau/cairo-ls).
-
-**Note**: This is an early preview release and is still in active development.
 
 ![](images/codecomplete.gif)
 
